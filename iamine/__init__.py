@@ -89,11 +89,11 @@ def main():
     parser = argparse.ArgumentParser(description='''Concurrently retrieve metadata from
                                                     Archive.org items.''')
 
-    parser.add_argument('itemlist', nargs='?', default=sys.stdin, 
+    parser.add_argument('itemlist', nargs='?', default=sys.stdin,
                         help='''A file containing Archive.org identifiers, one per line,
                                 for which to retrieve metadata from. If no itemlist is
                                 provided, identifiers will be read from stdin.''')
-    parser.add_argument('--workers', type=int, 
+    parser.add_argument('--workers', type=int,
                         help='The maximum number of tasks to run at once.')
     args = parser.parse_args()
 
@@ -102,13 +102,12 @@ def main():
             # Exit with 2 if stdin appears to be empty.
             sys.exit(2)
 
-    loop = asyncio.get_event_loop()
-    
     if not hasattr(args.itemlist, 'read'):
         itemlist = open(args.itemlist)
     else:
         itemlist = args.itemlist
 
+    loop = asyncio.get_event_loop()
     c = Miner(itemlist, loop, maxtasks=args.workers)
     asyncio.Task(c.run())
 
