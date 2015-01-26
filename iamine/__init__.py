@@ -85,22 +85,6 @@ class Crawler:
         self.busy.remove(url)
         return resp
 
-        #self.todo.remove(url)
-        #self.busy.add(url)
-        #resp = None
-        #data = None
-        #try:
-        #    resp = yield from aiohttp.request(
-        #        'get', url, connector=self.connector)
-        #except Exception as exc:
-        #    self.todo.add(url)
-        #    #sys.stderr.write('{0} has error {1}\n'.format(url, repr(str(exc))))
-        #else:
-        #    yield from resp.read()
-        #    resp.close()
-        #self.busy.remove(url)
-        #return resp
-
 
 def main():
     parser = argparse.ArgumentParser(description='''Concurrently retrieve metadata from
