@@ -9,7 +9,7 @@ import asyncio
 import aiohttp
 
 
-class Crawler:
+class Miner:
 
     def __init__(self, identifiers, loop, done_callback=None, maxtasks=None):
         maxtasks = 100 if not maxtasks else maxtasks
@@ -109,7 +109,7 @@ def main():
     else:
         itemlist = args.itemlist
 
-    c = Crawler(itemlist, loop, maxtasks=args.workers)
+    c = Miner(itemlist, loop, maxtasks=args.workers)
     asyncio.Task(c.run())
 
     try:
