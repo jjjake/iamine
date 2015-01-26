@@ -48,7 +48,7 @@ class Crawler:
         for identifier in identifiers:
             if not identifier.strip():
                 continue
-            url = 'http://207.241.224.2/metadata/{}'.format(identifier.strip())
+            url = 'http://archive.org/metadata/{}'.format(identifier.strip())
             self.todo.add(url)
             yield from self.sem.acquire()
             task = asyncio.Task(self.process(url))
