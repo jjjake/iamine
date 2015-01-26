@@ -75,7 +75,6 @@ class Crawler:
                 sys.stderr.write('{0} has error {1}\n'.format(url, repr(exc)))
                 if i >= max_retries:
                     break
-                self.todo.add(url)
                 sys.stderr.write('... retry {0}/{1} {2}\n'.format(i, max_retries, url))
                 yield from asyncio.sleep(1)
 
