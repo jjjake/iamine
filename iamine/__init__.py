@@ -11,8 +11,10 @@ import aiohttp
 
 class Miner:
 
-    def __init__(self, identifiers, loop, done_callback=None, maxtasks=None):
+    def __init__(self, identifiers, loop, done_callback=None, maxtasks=None, cache=None):
         maxtasks = 100 if not maxtasks else maxtasks
+        # By default, don't cache item metadata in redis.
+        params = {'dontcache': 1} if not cache else {}
 
         self.identifiers = identifiers
         self.loop = loop
@@ -21,6 +23,7 @@ class Miner:
         self.tasks = set()
         self.done_callback = done_callback
         self.sem = asyncio.Semaphore(maxtasks)
+        self.params = params
 
         # connector stores cookies between requests and uses connection pool
         self.connector = aiohttp.TCPConnector(share_cookies=True, loop=loop)
@@ -69,7 +72,7 @@ class Miner:
             i += 1
             try:
                 resp = yield from aiohttp.request(
-                    'get', url, connector=self.connector)
+                    'get', url, params=self.params, connector=self.connector)
                 break
             except Exception as exc:
                 sys.stderr.write('{0} has error {1}\n'.format(url, repr(exc)))
