@@ -24,6 +24,7 @@ class Miner:
         self.done_callback = done_callback
         self.sem = asyncio.Semaphore(maxtasks)
         self.params = params
+        self.total_count = 0
 
         # connector stores cookies between requests and uses connection pool
         self.connector = aiohttp.TCPConnector(share_cookies=True, loop=loop)
@@ -101,7 +102,7 @@ def main():
     args = parser.parse_args()
 
     if args.itemlist is sys.stdin:
-        if not (os.fstat(sys.stdin.fileno()).st_size > 0):
+        if (not os.fstat(sys.stdin.fileno()).st_size > 0) and (sys.stdin.seekable()):
             # Exit with 2 if stdin appears to be empty.
             sys.exit(2)
 
