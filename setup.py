@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name = 'iamine',
-    version = '0.1',
+    version = '0.2',
     author='Jacob M. Johnson',
     author_email='jake@archive.org',
     url='https://github.com/jjjake/iamine',
