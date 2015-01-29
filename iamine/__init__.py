@@ -23,37 +23,43 @@ import signal
 import os
 import sys
 import asyncio
+import random
 
 import aiohttp
 
 
 class Miner:
 
-    def __init__(self, identifiers, loop, done_callback=None, maxtasks=None, cache=None):
+    def __init__(self, identifiers, loop, done_callback=None, maxtasks=None, cache=None,
+                 retries=None, secure=None, hosts=None):
+        # Set default values for kwargs.
         maxtasks = 100 if not maxtasks else maxtasks
         # By default, don't cache item metadata in redis.
         params = {'dontcache': 1} if not cache else {}
+        max_retries = 10 if not retries else retries
+        protocol = 'http://' if not secure else 'https://'
 
         self.identifiers = identifiers
         self.loop = loop
-        self.todo = set()
-        self.busy = set()
         self.tasks = set()
+        self.busy = set()
         self.done_callback = done_callback
         self.sem = asyncio.Semaphore(maxtasks)
-        self.params = params
-        self.total_count = 0
 
-        # connector stores cookies between requests and uses connection pool
+        self.params = params
+        self.protocol = protocol
+        self.hosts = hosts
+        self.max_retries = max_retries
         self.connector = aiohttp.TCPConnector(share_cookies=True, loop=loop)
+
+        self.all_tasks_queued = False
 
     @asyncio.coroutine
     def run(self):
         asyncio.Task(self.addurls(self.identifiers))  # Set initial work.
         yield from asyncio.sleep(1)
-        while self.busy:
+        while self.tasks or self.all_tasks_queued is False:
             yield from asyncio.sleep(1)
-
         self.connector.close()
         self.loop.stop()
 
@@ -70,41 +76,37 @@ class Miner:
         for identifier in identifiers:
             if not identifier.strip():
                 continue
-            url = 'http://archive.org/metadata/{}'.format(identifier.strip())
-            self.todo.add(url)
             yield from self.sem.acquire()
-            task = asyncio.Task(self.process(url))
+            task = asyncio.Task(self.process(identifier.strip()))
             task.add_done_callback(lambda t: self.sem.release())
-            task.add_done_callback(self.tasks.remove)
             task.add_done_callback(self._done_callback)
+            task.add_done_callback(self.tasks.remove)
             self.tasks.add(task)
+        self.all_tasks_queued = True
 
     @asyncio.coroutine
-    def process(self, url):
-        self.todo.remove(url)
-        self.busy.add(url)
-        resp = None
-        data = None
-        i = 0
-        max_retries = 10
+    def process(self, identifier):
+        if self.hosts:
+            host = self.hosts[random.randrange(len(self.hosts))]
+        else:
+            host = 'archive.org'
+        url = self.protocol + host + '/metadata/' + identifier
+        retry = 0
         while True:
-            i += 1
+            retry += 1
             try:
                 resp = yield from aiohttp.request(
                     'get', url, params=self.params, connector=self.connector)
-                break
+                yield from resp.read()
+                resp.close()
+                return resp
             except Exception as exc:
                 sys.stderr.write('{0} has error {1}\n'.format(url, repr(exc)))
-                if i >= max_retries:
-                    break
-                sys.stderr.write('... retry {0}/{1} {2}\n'.format(i, max_retries, url))
+                if retry >= self.max_retries:
+                    return
+                sys.stderr.write(
+                    '... retry {0}/{1} {2}\n'.format(retry, self.max_retries, url))
                 yield from asyncio.sleep(1)
-
-        if resp:
-            yield from resp.read()
-            resp.close()
-        self.busy.remove(url)
-        return resp
 
 
 def main():
