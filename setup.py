@@ -1,5 +1,17 @@
 from setuptools import setup
+import sys
 
+
+if sys.version_info <= (3):
+    sys.stderr.write('"iamine" requires a Python version greater than 3.3.')
+    sys.exit(1)
+
+install_requires = [
+    'aiohttp==0.14.1',
+]
+
+if sys.version_info <= (3,4):
+    install_requires.append('asyncio==3.4.1')
 
 setup(
     name = 'iamine',
@@ -10,15 +22,12 @@ setup(
     license='AGPL 3',
     description='Concurrently retrieve metadata from Archive.org items.',
     packages=['iamine'],
-    install_requires = [
-        'aiohttp==0.14.1',
-        'asyncio==3.4.1'
-    ],
+    install_requires = install_requires,
     entry_points = {
         'console_scripts': [
             'ia-mine = iamine:main',
         ],
-    }
+    },
     classifiers=[
         'Development Status :: 1 - Planning',
         'Environment :: Console',
