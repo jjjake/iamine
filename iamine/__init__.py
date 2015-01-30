@@ -11,7 +11,7 @@ Concurrently retrieve metadata from Archive.org items.
 """
 
 __title__ = 'iamine'
-__version__ = '0.0.2'
+__version__ = '0.3'
 __author__ = 'Jacob M. Johnson'
 __license__ = 'AGPL 3'
 __copyright__ = 'Copyright 2015 Internet Archive'

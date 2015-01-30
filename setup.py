@@ -2,7 +2,7 @@ from setuptools import setup
 import sys
 
 
-if sys.version_info <= (3):
+if sys.version_info <= (3,):
     sys.stderr.write('"iamine" requires a Python version greater than 3.3.')
     sys.exit(1)
 
@@ -15,7 +15,7 @@ if sys.version_info <= (3,4):
 
 setup(
     name = 'iamine',
-    version = '0.2',
+    version = '0.3',
     author='Jacob M. Johnson',
     author_email='jake@archive.org',
     url='https://github.com/jjjake/iamine',
