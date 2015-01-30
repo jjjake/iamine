@@ -110,30 +110,43 @@ class Miner:
 
 
 def main():
-    parser = argparse.ArgumentParser(description='''Concurrently retrieve metadata from
-                                                    Archive.org items.''')
+    parser = argparse.ArgumentParser(
+        description='''Concurrently retrieve metadata from Archive.org items.''')
 
-    parser.add_argument('itemlist', nargs='?', default=sys.stdin,
+    parser.add_argument('itemlist', nargs='?', default=sys.stdin, 
+                        type=argparse.FileType('r'),
                         help='''A file containing Archive.org identifiers, one per line,
                                 for which to retrieve metadata from. If no itemlist is
                                 provided, identifiers will be read from stdin.''')
-    parser.add_argument('--workers', type=int,
-                        help='The maximum number of tasks to run at once.')
+    parser.add_argument('--workers', '-w', type=int, default=100,
+                        help='''The maximum number of tasks to run at once. 
+                                Defaults to 100''')
+    parser.add_argument('--cache', '-c', action='store_true',
+                        help='''Cache item metadata on Archive.org. 
+                                Items are not cached are not cached by default.''')
+    parser.add_argument('--retries', '-r', type=int, default=10,
+                        help='The maximum number of retries for each item.')
+    parser.add_argument('--secure', '-s', action='store_true',
+                        help='Use HTTPS. HTTP is used by default.')
+    parser.add_argument('--hosts', type=argparse.FileType('r'),
+                        help='''A file containing a list of hosts to shuffle through. 
+                                Default host is archive.org''')
     args = parser.parse_args()
+
+    if args.hosts:
+        hosts = [x.strip() for x in args.hosts if x.strip()]
+    else:
+        hosts = None
 
     if args.itemlist is sys.stdin:
         if (not os.fstat(sys.stdin.fileno()).st_size > 0) and (sys.stdin.seekable()):
             # Exit with 2 if stdin appears to be empty.
             sys.exit(2)
 
-    if not hasattr(args.itemlist, 'read'):
-        itemlist = open(args.itemlist)
-    else:
-        itemlist = args.itemlist
-
     loop = asyncio.get_event_loop()
-    c = Miner(itemlist, loop, maxtasks=args.workers)
-    asyncio.Task(c.run())
+    m = Miner(args.itemlist, loop, maxtasks=args.workers, cache=args.cache,
+              retries=args.retries, secure=args.secure, hosts=hosts)
+    asyncio.Task(m.run())
 
     try:
         loop.add_signal_handler(signal.SIGINT, loop.stop)
