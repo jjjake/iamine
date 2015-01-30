@@ -118,6 +118,8 @@ def main():
                         help='''A file containing Archive.org identifiers, one per line,
                                 for which to retrieve metadata from. If no itemlist is
                                 provided, identifiers will be read from stdin.''')
+    parser.add_argument('--version', '-v', action='version', 
+                        version='%(prog)s {}'.format(__version__))
     parser.add_argument('--workers', '-w', type=int, default=100,
                         help='''The maximum number of tasks to run at once. 
                                 Defaults to 100''')
