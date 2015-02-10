@@ -15,7 +15,7 @@ if sys.version_info <= (3,4):
 
 setup(
     name = 'iamine',
-    version = '0.3',
+    version = '0.4',
     author='Jacob M. Johnson',
     author_email='jake@archive.org',
     url='https://github.com/jjjake/iamine',
