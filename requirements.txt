@@ -1,2 +1,2 @@
-aiohttp==0.14.1
+aiohttp==0.13.1
 asyncio==3.4.1
