@@ -16,6 +16,7 @@ if sys.version_info <= (3,):
 install_requires = [
     'aiohttp==0.13.1',
     'schema==0.3.1',
+    'docopt==0.6.1',
 ]
 
 if sys.version_info <= (3,4):
