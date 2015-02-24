@@ -1,6 +1,13 @@
-from setuptools import setup
+import re
+import ast
 import sys
+from setuptools import setup
+from codecs import open
 
+
+_version_re = re.compile(r'__version__\s+=\s+(.*)')
+with open('iamine/_version.py', 'rb', 'utf-8') as f:
+    version = str(ast.literal_eval(_version_re.search(f.read()).group(1)))
 
 if sys.version_info <= (3,):
     sys.stderr.write('"iamine" requires a Python version greater than 3.3.')
@@ -8,6 +15,7 @@ if sys.version_info <= (3,):
 
 install_requires = [
     'aiohttp==0.13.1',
+    'schema==0.3.1',
 ]
 
 if sys.version_info <= (3,4):
@@ -15,7 +23,7 @@ if sys.version_info <= (3,4):
 
 setup(
     name = 'iamine',
-    version = '0.5',
+    version = version,
     author='Jacob M. Johnson',
     author_email='jake@archive.org',
     url='https://github.com/jjjake/iamine',
@@ -24,8 +32,15 @@ setup(
     packages=['iamine'],
     install_requires = install_requires,
     entry_points = {
+        'internetarchive.plugins': [
+            'Miner = iamine.core:Miner',
+            'mine_items = iamine.api:mine_items',
+        ],
+        'internetarchive.cli.plugins': [
+            'ia_mine = iamine.ia_mine',
+        ],
         'console_scripts': [
-            'ia-mine = iamine:main',
+            'ia-mine = iamine.ia_mine:main',
         ],
     },
     classifiers=[
