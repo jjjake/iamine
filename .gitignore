@@ -58,3 +58,6 @@ target/
 
 # wheels
 wheelhouse
+
+# Vitrualenv
+.venv*
