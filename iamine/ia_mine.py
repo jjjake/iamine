@@ -3,7 +3,7 @@
 
 usage: ia-mine [-h] [--version] [--workers WORKERS] [--cache]
                [--retries RETRIES] [--secure] [--hosts HOSTS]
-               (<itemlist> | -)
+               [<itemlist> | -]
 
 positional arguments:
   itemlist              A file containing Archive.org identifiers, one per
@@ -24,13 +24,12 @@ optional arguments:
                         [default: 10]
   -s, --secure          Use HTTPS. HTTP is used by default.
   -H, --hosts HOSTS     A file containing a list of hosts to shuffle through.
-                        Default host is archive.org
 
 """
 import os
 import sys
 
-from docopt import docopt
+from docopt import docopt, DocoptExit
 from schema import Schema, Use, Or, SchemaError
 
 from .api import mine_items
@@ -40,23 +39,29 @@ from ._version import __version__
 def main(argv=None):
     # If ia-wrapper calls main with argv argument, strip the
     # "mine" subcommand from args. 
-    argv = argv[1:] if argv else None 
+    argv = argv[1:] if argv else sys.argv[1:]
 
-    args = docopt(__doc__, version=__version__, argv=argv)
+    # Catch DocoptExit error and write to stderr manually.
+    # Otherwise error's vanish if executed from a pex binary. 
+    try:
+        args = docopt(__doc__, version=__version__, argv=argv, help=False)
+    except DocoptExit as exc:
+        sys.exit(sys.stderr.write('{}\n'.format(exc.code)))
 
     # Validate args.
-    open_file_or_stdin = lambda f: sys.stdin if f == '-' else open(f)
+    open_file_or_stdin = lambda f: sys.stdin if (f == '-') or (not f) else open(f)
     parse_hosts = lambda f: [x.strip() for x in open(f) if x.strip()]
     schema = Schema({
         '-': bool,
         '--cache': bool,
         '--help': bool,
-        '--hosts': Or(None, Use(parse_hosts, error='HOSTS should be a readable file.')),
-        '--retries': Use(int),
+        '--hosts': Or(None, 
+            Use(parse_hosts, error='--hosts=HOSTS should be a readable file.')),
+        '--retries': Use(int, 'RETRIES should be an integer.'),
         '--secure': bool,
         '--version': bool,
         '<itemlist>': Use(open_file_or_stdin, error='<itemlist> should be readable'),
-        '--workers': Use(int),
+        '--workers': Use(int, error='--workers=WORKERS should be an integer.'),
     })
     try:
         args = schema.validate(args)
