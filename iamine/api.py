@@ -30,10 +30,9 @@ def search(query=None, params=None, mine_ids=None, info_only=None, **kwargs):
 
     try:
         loop.add_signal_handler(signal.SIGINT, loop.stop)
+        loop.run_until_complete(miner.search(query, params=params, mine_ids=mine_ids))
     except RuntimeError:
         pass
-
-    loop.run_until_complete(miner.search(query, params=params, mine_ids=mine_ids))
 
 
 def mine_items(identifiers, params=None, callback=None, **kwargs):
@@ -55,6 +54,6 @@ def mine_items(identifiers, params=None, callback=None, **kwargs):
     miner = Miner(loop, **kwargs)
     try:
         loop.add_signal_handler(signal.SIGINT, loop.stop)
+        loop.run_until_complete(miner.mine_items(identifiers, callback))
     except RuntimeError:
         pass
-    loop.run_until_complete(miner.mine_items(identifiers, callback))
