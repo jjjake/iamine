@@ -99,7 +99,7 @@ class Miner:
         p['rows'] = 0
         resp = yield from aiohttp.request('get', url, params=p)
         resp.close()
-        return (yield from resp.json())
+        return (yield from resp.json(encoding='utf-8'))
 
     @asyncio.coroutine
     def _handle_search_results(self, resp, mine_ids=None, params=None, callback=None):
@@ -111,7 +111,7 @@ class Miner:
             task.add_done_callback(self.tasks.remove)
             self.tasks.add(task)
         else:
-            j = yield from resp.json()
+            j = yield from resp.json(encoding='utf-8')
             resp.close()
             requests = []
             for doc in j.get('response', {}).get('docs', []):

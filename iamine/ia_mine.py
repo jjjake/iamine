@@ -63,7 +63,7 @@ from ._version import __version__
 
 
 def print_itemlist(resp):
-    j = yield from resp.json()
+    j = yield from resp.json(encoding='utf-8')
     for doc in j.get('response', {}).get('docs', []):
         print(doc.get('identifier'))
 
