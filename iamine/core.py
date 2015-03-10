@@ -145,7 +145,6 @@ class Miner:
                 else:
                     return resp
             except Exception as exc:
-                raise exc
                 sys.stderr.write('{0} has error {1}\n'.format(url, repr(exc)))
                 if retry >= self.max_retries:
                     return
