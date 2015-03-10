@@ -7,7 +7,8 @@ import json
 from .core import Miner
 
 
-def search(query=None, params=None, mine_ids=None, info_only=None, **kwargs):
+def search(query=None, params=None, callback=None, mine_ids=None, info_only=None,
+           **kwargs):
     query = '(*:*)' if not query else query
     params = params if params else {}
     mine_ids = True if mine_ids else False
@@ -30,7 +31,8 @@ def search(query=None, params=None, mine_ids=None, info_only=None, **kwargs):
 
     try:
         loop.add_signal_handler(signal.SIGINT, loop.stop)
-        loop.run_until_complete(miner.search(query, params=params, mine_ids=mine_ids))
+        loop.run_until_complete(miner.search(query, params=params, callback=callback,
+                                             mine_ids=mine_ids))
     except RuntimeError:
         pass
 

@@ -57,7 +57,7 @@ class Miner:
             print(content.decode('utf-8'))
 
     @asyncio.coroutine
-    def search(self, query=None, params=None, mine_ids=None):
+    def search(self, query=None, params=None, callback=None, mine_ids=None):
         search_params = self.get_search_params(query, params)
         url = self.make_url(path='/advancedsearch.php')
 
@@ -68,7 +68,8 @@ class Miner:
         for page in range(1, (total_pages + 2)):
             params = deepcopy(search_params)
             params['page'] = page
-            cb = functools.partial(self._handle_search_results, mine_ids=mine_ids)
+            cb = functools.partial(self._handle_search_results, callback=callback,
+                                   mine_ids=mine_ids)
             task = asyncio.Task(self.add_requests([(url, params, cb)]))
             task.add_done_callback(self.tasks.remove)
             self.tasks.add(task)
