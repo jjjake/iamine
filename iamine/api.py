@@ -1,10 +1,42 @@
 import signal
 import asyncio
+import urllib.parse
+import urllib.request
+import json
 
 from .core import Miner
 
 
-def mine_items(identifiers, **kwargs):
+def search(query=None, params=None, mine_ids=None, info_only=None, **kwargs):
+    query = '(*:*)' if not query else query
+    params = params if params else {}
+    mine_ids = True if mine_ids else False
+    info_only = True if info_only else info_only
+
+    if not kwargs.get('loop'):
+        loop = asyncio.get_event_loop()
+    else:
+        loop = kwargs['loop']
+    miner = Miner(loop, **kwargs)
+
+    if info_only:
+        url = miner.make_url('/advancedsearch.php?')
+        params = urllib.parse.urlencode(miner.get_search_params(query, params))
+        resp = urllib.request.urlopen(url + params)
+        j = json.loads(resp.read().decode('utf-8'))
+        search_info = j['responseHeader']
+        search_info['numFound'] = j.get('response', {}).get('numFound', 0)
+        return search_info
+
+    try:
+        loop.add_signal_handler(signal.SIGINT, loop.stop)
+    except RuntimeError:
+        pass
+
+    loop.run_until_complete(miner.search(query, params=params, mine_ids=mine_ids))
+
+
+def mine_items(identifiers, params=None, callback=None, **kwargs):
     """Concurrently retrieve metadata from Archive.org items.
 
     Args:
@@ -12,19 +44,17 @@ def mine_items(identifiers, **kwargs):
         response_callback: A callback function to call on each
             aiohttp.client.ClientResponse object successfully returned.
         max_tasks: The maximum number of tasks to run concurrently.
-        cache: A boolean indicating if the item metadata should be cached on
-            Archive.org servers.
         max_retries: The maximum number of times to retry a given request.
         secure: A boolean indicating if a secure connection should be used or not.
         hosts: A list of hosts to cycle through randomly for each request.
     """
-    loop = asyncio.get_event_loop()
-    miner = Miner(identifiers, loop, **kwargs)
-    asyncio.Task(miner.run())
-
+    if not kwargs.get('loop'):
+        loop = asyncio.get_event_loop()
+    else:
+        loop = kwargs['loop']
+    miner = Miner(loop, **kwargs)
     try:
         loop.add_signal_handler(signal.SIGINT, loop.stop)
     except RuntimeError:
         pass
-
-    loop.run_forever()
+    loop.run_until_complete(miner.mine_items(identifiers, callback))

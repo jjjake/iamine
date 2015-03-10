@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """Concurrently retrieve metadata from Archive.org items.
 
-usage: ia-mine [-h] [--version] [--workers WORKERS] [--cache]
+usage: ia-mine (<itemlist> | -) [--workers WORKERS] [--cache]
                [--retries RETRIES] [--secure] [--hosts HOSTS]
-               [<itemlist> | -]
+       ia-mine --search QUERY [--field FIELD... | --mine-ids]
+               [--workers WORKERS] [--cache] [--retries RETRIES]
+               [--secure] [--hosts HOSTS]
+       ia-mine [-h | --version] 
+
 
 positional arguments:
   itemlist              A file containing Archive.org identifiers, one per
@@ -14,6 +18,10 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   -v, --version         show program's version number and exit
+  -s, --search QUERY    mine search search results.
+  -m, --mine-ids        mine items returned from search results.
+                        [default: False]
+  -f, --field FIELD     fields to include in search results.
   -w, --workers WORKERS
                         The maximum number of tasks to run at once.
                         [default: 100]
@@ -32,7 +40,7 @@ import sys
 from docopt import docopt, DocoptExit
 from schema import Schema, Use, Or, SchemaError
 
-from .api import mine_items
+from .api import mine_items, search
 from ._version import __version__
 
 
@@ -44,22 +52,19 @@ def main(argv=None):
     # Catch DocoptExit error and write to stderr manually.
     # Otherwise error's vanish if executed from a pex binary. 
     try:
-        args = docopt(__doc__, version=__version__, argv=argv, help=False)
+        args = docopt(__doc__, version=__version__, argv=argv, help=True)
     except DocoptExit as exc:
         sys.exit(sys.stderr.write('{}\n'.format(exc.code)))
 
     # Validate args.
     open_file_or_stdin = lambda f: sys.stdin if (f == '-') or (not f) else open(f)
     parse_hosts = lambda f: [x.strip() for x in open(f) if x.strip()]
-    schema = Schema({
-        '-': bool,
-        '--cache': bool,
-        '--help': bool,
+    schema = Schema({object: bool,
+        '--search': Or(None, Use(str)),
+        '--field': list,
         '--hosts': Or(None, 
             Use(parse_hosts, error='--hosts=HOSTS should be a readable file.')),
         '--retries': Use(int, 'RETRIES should be an integer.'),
-        '--secure': bool,
-        '--version': bool,
         '<itemlist>': Use(open_file_or_stdin, error='<itemlist> should be readable'),
         '--workers': Use(int, error='--workers=WORKERS should be an integer.'),
     })
@@ -68,15 +73,26 @@ def main(argv=None):
     except SchemaError as exc:
         sys.exit(sys.stderr.write('{0}error: {1}\n'.format(__doc__, str(exc))))
 
-    # Exit with 2 if stdin appears to be empty.
-    if args['-']:
-        if (not os.fstat(sys.stdin.fileno()).st_size > 0) and (sys.stdin.seekable()):
-            sys.exit(2)
-
-    # Launch miner.
-    mine_items(args['<itemlist>'],
+    if args['--search']:
+        params = {}
+        for i, f in enumerate(args['--field']):
+            params['fl[{}]'.format(i)] = f
+        search(args['--search'],
+               mine_ids=args['--mine-ids'],
+               params=params,
                max_tasks=args['--workers'],
-               cache=args['--cache'],
                retries=args['--retries'],
                secure=args['--secure'],
                hosts=args['--hosts'])
+    else:
+        # Exit with 2 if stdin appears to be empty.
+        if args['-']:
+            if (not os.fstat(sys.stdin.fileno()).st_size > 0) and (sys.stdin.seekable()):
+                sys.exit(2)
+
+        # Launch miner.
+        mine_items(args['<itemlist>'],
+                   max_tasks=args['--workers'],
+                   retries=args['--retries'],
+                   secure=args['--secure'],
+                   hosts=args['--hosts'])

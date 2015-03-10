@@ -16,6 +16,6 @@ __copyright__ = 'Copyright 2015 Internet Archive'
 
 from ._version import __version__
 from .core import Miner
-from .api import mine_items
+from .api import mine_items, search
 
-__all__ = ['Miner', 'mine_items', '__version__']
+__all__ = ['Miner', 'mine_items', 'search', '__version__']
