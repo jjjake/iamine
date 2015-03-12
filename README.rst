@@ -49,4 +49,4 @@ stdout and any error messages to stderr. Mining the JSON dumped to
 stdout can be done using a tool like
 `jq <http://stedolan.github.io/jq/>_`, for example. jq binaries can be
 downloaded at `http://stedolan.github.io/jq/download/
- <http://stedolan.github.io/jq/download/>`_.
+<http://stedolan.github.io/jq/download/>`_.
