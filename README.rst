@@ -1,7 +1,8 @@
 =========
  IA Mine
 =========
- Internet Archive data mining tools.
+
+Internet Archive data mining tools.
 
 What Is IA Mine?
 ================
