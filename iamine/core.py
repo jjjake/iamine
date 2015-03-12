@@ -136,7 +136,8 @@ class Miner:
         p['rows'] = 0
         resp = yield from aiohttp.request('get', url, params=p)
         resp.close()
-        return (yield from resp.json(encoding='utf-8'))
+        j = yield from resp.json(encoding='utf-8')
+        return {} if not j else j
 
     @asyncio.coroutine
     def _handle_search_results(self, resp, mine_ids=None, params=None, callback=None):
