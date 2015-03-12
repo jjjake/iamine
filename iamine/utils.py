@@ -1,4 +1,5 @@
 import sys
+import signal
 
 
 def suppress_interrupt_messages():
@@ -15,3 +16,7 @@ def suppress_interrupt_messages():
             sys.exit(130)
 
     sys.excepthook = new_hook
+
+
+def suppress_brokenpipe_messages():
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
