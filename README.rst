@@ -32,6 +32,7 @@ you would download an ``ia-mine`` py3.4 binary.
 
 
 .. code:: bash
+
     # Download ia-mine and make it executable.
     $ curl -L https://archive.org/download/iamine-pex/ia-mine-0.1.3-py3.3.pex > ia-mine
     $ chmod +x ia-mine
