@@ -47,6 +47,6 @@ The `ia-mine` command line tool simply retrieves metadata and search
 results concurrently from Archive.org, and dumps the JSON returned to
 stdout and any error messages to stderr. Mining the JSON dumped to
 stdout can be done using a tool like
-`jq <http://stedolan.github.io/jq/>_`, for example. jq binaries can be
+`jq <http://stedolan.github.io/jq/>`_, for example. jq binaries can be
 downloaded at `http://stedolan.github.io/jq/download/
 <http://stedolan.github.io/jq/download/>`_.
