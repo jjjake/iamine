@@ -1,5 +1,4 @@
 import os.path
-from pathlib import Path
 import configparser
 import urllib.parse
 import urllib.request
@@ -55,12 +54,12 @@ def get_auth_config(username, password):
 def get_config_file():
     config = configparser.ConfigParser()
 
-    config_dir = Path(os.path.expanduser('~/.config/'))
-    if not config_dir.is_dir():
-        config_file = Path(os.path.expanduser('~/.ia'))
+    config_dir = os.path.expanduser('~/.config/')
+    if not os.path.isdir(config_dir):
+        config_file = os.path.expanduser('~/.ia')
     else:
-        config_file = config_dir/'ia.ini'
-    config.read(str(config_file))
+        config_file = '{0}/ia.ini'.format(config_dir)
+    config.read(config_file)
 
     return (config_file, config)
 
@@ -94,15 +93,15 @@ def write_config_file(username, password, overwrite=None):
         config['cookies'] = cookies
 
     # Write config file.
-    with config_file.open('w') as fh:
-        config_file.chmod(0o700)
+    with open(config_file, 'w') as fh:
+        os.chmod(config_file, 0o700)
         config.write(fh)
 
 
 def get_config(config=None):
     _config = {} if not config else config
     config_file, config = get_config_file()
-    if not config_file.exists():
+    if not os.path.isfile(config_file):
         return _config
 
     config_dict = {
