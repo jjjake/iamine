@@ -3,7 +3,7 @@
 
 usage: ia-mine (<itemlist> | -) [--workers WORKERS] [--cache]
                [--retries RETRIES] [--secure] [--hosts HOSTS]
-       ia-mine --search QUERY [--mine-ids | --field FIELD... | --itemlist]
+       ia-mine --search QUERY [--info | --num-found | --mine-ids | --field FIELD... | --itemlist]
                [--rows ROWS] [--workers WORKERS] [--cache] [--retries RETRIES]
                [--secure] [--hosts HOSTS]
        ia-mine [-h | --version | --configure]
@@ -22,8 +22,11 @@ optional arguments:
                         see: https://archive.org/advancedsearch.php
   -m, --mine-ids        Mine items returned from search results.
                         [default: False]
+  -i, --info            Print search result response header to stdout and exit.
   -f, --field FIELD     Fields to include in search results.
-  -i, --itemlist        Dump identifiers only to stdout. [default: False]
+  -i, --itemlist        Print identifiers only to stdout. [default: False]
+  -n, --num-found       Print the number of items found for the given search
+                        query.
   --rows ROWS           The number of rows to return for each request made to
                         the Archive.org Advancedsearch API. On slower networks,
                         it may be useful to use a lower value, and on faster
@@ -46,6 +49,7 @@ suppress_brokenpipe_messages()
 
 import os
 import sys
+import json
 
 from docopt import docopt, DocoptExit
 from schema import Schema, Use, Or, SchemaError
@@ -109,19 +113,25 @@ def main(argv=None):
     # Search.
     if args['--search']:
         callback = print_itemlist if args['--itemlist'] else None
+        info_only = True if args['--info'] or args['--num-found'] else False 
         params = {
             'rows': args['--rows']
         }
         for i, f in enumerate(args['--field']):
             params['fl[{}]'.format(i)] = f
-        search(args['--search'],
-               params=params,
-               callback=callback,
-               mine_ids=args['--mine-ids'],
-               max_tasks=args['--workers'],
-               retries=args['--retries'],
-               secure=args['--secure'],
-               hosts=args['--hosts'])
+        r = search(args['--search'],
+                params=params,
+                callback=callback,
+                mine_ids=args['--mine-ids'],
+                info_only=info_only,
+                max_tasks=args['--workers'],
+                retries=args['--retries'],
+                secure=args['--secure'],
+                hosts=args['--hosts'])
+        if args['--info']:
+            sys.stdout.write('{}\n'.format(json.dumps(r)))
+        elif args['--num-found']:
+            sys.stdout.write('{}\n'.format(r.get('numFound', 0)))
         sys.exit(0)
 
     # Mine.

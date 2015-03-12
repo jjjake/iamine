@@ -14,7 +14,7 @@ def search(query=None, params=None, callback=None, mine_ids=None, info_only=None
     query = '(*:*)' if not query else query
     params = params if params else {}
     mine_ids = True if mine_ids else False
-    info_only = True if info_only else info_only
+    info_only = True if info_only else False
 
     if not kwargs.get('loop'):
         loop = asyncio.get_event_loop()
