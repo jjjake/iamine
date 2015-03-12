@@ -20,8 +20,8 @@ Command Line Interface
 ----------------------
 
 The IA Mine command line tool should work on any Unix-like operating
-system that has Python 3 installed on it. To start using the IA Mine
-command line tool, simply download one of the latest binaries from
+system that has Python 3 installed on it. To start using the
+``ia-mine``, simply download one of the latest binaries from
 `https://archive.org/details/iamine-pex
 <https://archive.org/details/iamine-pex>`_. Currently, ``ia-mine``
 binaries are dependent on the Python 3 minor version you have
