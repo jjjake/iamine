@@ -1,25 +1,49 @@
+import os
+import sys
+import locale
+import urllib.parse
 import asyncio
 import functools
 from copy import deepcopy
-import sys
 import random
+try:
+    import ujson as json
+except ImportError:
+    import json
 
 import aiohttp
+
+from ._version import __version__
+from .config import get_config
 
 
 class Miner:
 
     def __init__(self, loop=None, max_tasks=None, retries=None, secure=None, hosts=None,
-                 params=None):
+                 params=None, config=None, debug=None):
         # Set default values for kwargs.
+        loop = asyncio.get_event_loop() if not loop else loop
         max_tasks = 100 if not max_tasks else max_tasks
         max_retries = 10 if not retries else retries
         protocol = 'http://' if not secure else 'https://'
-        loop = asyncio.get_event_loop() if not loop else loop
+        config = get_config(config)
+        debug = True if debug else False
 
+        self.max_retries = max_retries
         self.protocol = protocol
         self.hosts = hosts
-        self.max_retries = max_retries
+        self.config = config
+        self.debug = debug
+        self.cookies = config.get('cookies')
+
+        # Set User-agent.
+        uname = os.uname()
+        lang = locale.getlocale()[0][:2]
+        py_version = '{0}.{1}.{2}'.format(*sys.version_info)
+        user = urllib.parse.unquote(config.get('cookies', {}).get('logged-in-user', ''))
+        ua = 'ia-mine/{0} ({1} {2}; N; {3}; {4}) Python/{5}'.format(
+            __version__, uname.sysname, uname.machine, lang, user, py_version)
+        self.headers = {'User-agent': ua}
 
         # Asyncio/Aiohttp settings.
         self.tasks = set()
@@ -58,6 +82,11 @@ class Miner:
 
     @asyncio.coroutine
     def search(self, query=None, params=None, callback=None, mine_ids=None):
+        # When mining id's, the only field we need returned is "identifier".
+        if mine_ids and params:
+            params = dict((k, v) for k, v in params.items() if 'fl' not in k)
+            params['fl[]'] = 'identifier'
+
         search_params = self.get_search_params(query, params)
         url = self.make_url(path='/advancedsearch.php')
 
@@ -82,7 +111,6 @@ class Miner:
         default_rows = 1000
         search_params = {
             'q': '(*:*)',
-            'fl[]': 'identifier',
             'page': 1,
             'output': 'json',
         }
@@ -138,18 +166,29 @@ class Miner:
         while True:
             retry += 1
             try:
-                resp = yield from aiohttp.request(
-                    'get', url, params=params, connector=self.connector)
+                resp = yield from aiohttp.request('get', url, params=params,
+                                                  headers=self.headers,
+                                                  cookies=self.cookies,
+                                                  connector=self.connector)
                 if callback:
                     return (yield from callback(resp))
                 else:
                     return resp
             except Exception as exc:
-                sys.stderr.write('{0} has error {1}\n'.format(url, repr(exc)))
-                if retry >= self.max_retries:
+                error = {
+                    'url': url,
+                    'params': params,
+                    'error': exc.__doc__,
+                }
+                if self.debug:
+                    error['callback'] = repr(callback)
+                    error['exception'] = repr(exc)
+                    error['retries_left'] = self.max_retries - retry
+                    sys.stderr.write('{}\n'.format(json.dumps(error)))
+                elif retry >= self.max_retries:
+                    error['error'] = 'Maximum retries exceeded for url, giving up.'
+                    sys.stderr.write('{}\n'.format(json.dumps(error)))
                     return
-                sys.stderr.write(
-                    '... retry {0}/{1} {2}\n'.format(retry, self.max_retries, url))
                 yield from asyncio.sleep(1)
 
     def make_url(self, path):
@@ -157,4 +196,4 @@ class Miner:
             host = self.hosts[random.randrange(len(self.hosts))]
         else:
             host = 'archive.org'
-        return self.protocol + host + path
+        return self.protocol + host + path.strip()

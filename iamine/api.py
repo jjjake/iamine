@@ -3,8 +3,10 @@ import asyncio
 import urllib.parse
 import urllib.request
 import json
+from getpass import getpass
 
 from .core import Miner
+from .config import write_config_file
 
 
 def search(query=None, params=None, callback=None, mine_ids=None, info_only=None,
@@ -59,3 +61,9 @@ def mine_items(identifiers, params=None, callback=None, **kwargs):
         loop.run_until_complete(miner.mine_items(identifiers, callback))
     except RuntimeError:
         pass
+
+
+def configure(username=None, password=None, overwrite=None):
+    username = input('Email address: ') if not username else username
+    password = getpass('Password: ') if not password else password
+    write_config_file(username, password, overwrite)

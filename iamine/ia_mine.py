@@ -3,11 +3,10 @@
 
 usage: ia-mine (<itemlist> | -) [--workers WORKERS] [--cache]
                [--retries RETRIES] [--secure] [--hosts HOSTS]
-       ia-mine --search QUERY [--field FIELD... | --mine-ids | --itemlist]
-               [--workers WORKERS] [--cache] [--retries RETRIES]
+       ia-mine --search QUERY [--mine-ids | --field FIELD... | --itemlist]
+               [--rows ROWS] [--workers WORKERS] [--cache] [--retries RETRIES]
                [--secure] [--hosts HOSTS]
-       ia-mine [-h | --version] 
-
+       ia-mine [-h | --version | --configure]
 
 positional arguments:
   itemlist              A file containing Archive.org identifiers, one per
@@ -16,14 +15,19 @@ positional arguments:
                         stdin.
 
 optional arguments:
-  -h, --help            show this help message and exit
-  -v, --version         show program's version number and exit
-  -s, --search QUERY    mine search search results.
-  -m, --mine-ids        mine items returned from search results.
+  -h, --help            Show this help message and exit.
+  -v, --version         Show program's version number and exit.
+  --configure           Configure ia-mine to use your Archive.org credentials.
+  -s, --search QUERY    Mine search results. For help formatting your query,
+                        see: https://archive.org/advancedsearch.php
+  -m, --mine-ids        Mine items returned from search results.
                         [default: False]
-  -f, --field FIELD     fields to include in search results.
-                        [default: identifier]
-  -i, --itemlist        dump identifiers only to stdout. [default: False]
+  -f, --field FIELD     Fields to include in search results.
+  -i, --itemlist        Dump identifiers only to stdout. [default: False]
+  --rows ROWS           The number of rows to return for each request made to
+                        the Archive.org Advancedsearch API. On slower networks,
+                        it may be useful to use a lower value, and on faster
+                        networks, a higher value. [default: 50]
   -w, --workers WORKERS
                         The maximum number of tasks to run at once.
                         [default: 100]
@@ -36,30 +40,17 @@ optional arguments:
   -H, --hosts HOSTS     A file containing a list of hosts to shuffle through.
 
 """
-def suppress_keyboard_interrupt_message():
-    """Register a new excepthook to suppress KeyboardInterrupt
-    exception messages, and exit with status code 130.
-
-    """
-    old_excepthook = sys.excepthook
-
-    def new_hook(type, value, traceback):
-        if type != KeyboardInterrupt:
-            old_excepthook(type, value, traceback)
-        else:
-            sys.exit(130)
-
-    sys.excepthook = new_hook
-
+from .utils import suppress_interrupt_messages
+suppress_interrupt_messages()
 import os
 import sys
-suppress_keyboard_interrupt_message()
 
 from docopt import docopt, DocoptExit
 from schema import Schema, Use, Or, SchemaError
 
-from .api import mine_items, search
+from .api import mine_items, search, configure
 from ._version import __version__
+from .exceptions import AuthenticationException
 
 
 def print_itemlist(resp):
@@ -67,13 +58,14 @@ def print_itemlist(resp):
     for doc in j.get('response', {}).get('docs', []):
         print(doc.get('identifier'))
 
+
 def main(argv=None):
     # If ia-wrapper calls main with argv argument, strip the
-    # "mine" subcommand from args. 
+    # "mine" subcommand from args.
     argv = argv[1:] if argv else sys.argv[1:]
 
     # Catch DocoptExit error and write to stderr manually.
-    # Otherwise error's vanish if executed from a pex binary. 
+    # Otherwise error's vanish if executed from a pex binary.
     try:
         args = docopt(__doc__, version=__version__, argv=argv, help=True)
     except DocoptExit as exc:
@@ -85,22 +77,39 @@ def main(argv=None):
     schema = Schema({object: bool,
         '--search': Or(None, Use(str)),
         '--field': list,
-        '--hosts': Or(None, 
-            Use(parse_hosts, error='--hosts=HOSTS should be a readable file.')),
-        '--retries': Use(int, 'RETRIES should be an integer.'),
-        '<itemlist>': Use(open_file_or_stdin, error='<itemlist> should be readable'),
-        '--workers': Use(int, error='--workers=WORKERS should be an integer.'),
+        '--rows': Use(int,
+            error='"{}" should be an integer'.format(args['--rows'])),
+        '--hosts': Or(None, Use( parse_hosts,
+            error='"{}" should be a readable file.'.format(args['--hosts']))),
+        '--retries': Use(int, '"{}" should be an integer.'.format(args['--retries'])),
+        '<itemlist>': Use(open_file_or_stdin,
+            error='"{}" should be readable'.format(args['<itemlist>'])),
+        '--workers': Use(int,
+            error='"{}" should be an integer.'.format(args['--workers'])),
     })
     try:
         args = schema.validate(args)
     except SchemaError as exc:
         sys.exit(sys.stderr.write('{0}error: {1}\n'.format(__doc__, str(exc))))
 
+    # Configure.
+    if args['--configure']:
+        sys.stdout.write(
+            'Enter your Archive.org credentials below to configure ia-mine.\n\n')
+        try:
+            configure(overwrite=True)
+        except AuthenticationException as exc:
+            sys.stdout.write('\n')
+            sys.stderr.write('error: {}\n'.format(str(exc)))
+            sys.exit(1)
+        sys.exit(0)
+
+    # Search.
     if args['--search']:
         callback = print_itemlist if args['--itemlist'] else None
-        params = {}
-        if 'identifier' not in args['--field']:
-            args['--field'].append('identifier')
+        params = {
+            'rows': args['--rows']
+        }
         for i, f in enumerate(args['--field']):
             params['fl[{}]'.format(i)] = f
         search(args['--search'],
@@ -112,6 +121,8 @@ def main(argv=None):
                secure=args['--secure'],
                hosts=args['--hosts'])
         sys.exit(0)
+
+    # Mine.
     else:
         # Exit with 2 if stdin appears to be empty.
         if args['-']:
