@@ -87,6 +87,15 @@ class Miner:
             params = dict((k, v) for k, v in params.items() if 'fl' not in k)
             params['fl[]'] = 'identifier'
 
+        # Make sure "identifier" is always returned in search results.
+        fields = [k for k in params if 'fl' in k]
+        if (len(fields) == 1) and (not any('identifier' == params[k] for k in params)):
+            # Make sure to not overwrite the existing fl[] key.
+            i = 0
+            while params.get('fl[{}]'.format(i)):
+                i += 1
+            params['fl[{}]'.format(i)] = 'identifier'
+
         search_params = self.get_search_params(query, params)
         url = self.make_url(path='/advancedsearch.php')
 
