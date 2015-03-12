@@ -3,7 +3,8 @@
 
 usage: ia-mine (<itemlist> | -) [--workers WORKERS] [--cache]
                [--retries RETRIES] [--secure] [--hosts HOSTS]
-       ia-mine --search QUERY [--info | --num-found | --mine-ids | --field FIELD... | --itemlist]
+       ia-mine --search QUERY [[--info | --info --field FIELD...]
+               |--num-found | --mine-ids | --field FIELD... | --itemlist]
                [--rows ROWS] [--workers WORKERS] [--cache] [--retries RETRIES]
                [--secure] [--hosts HOSTS]
        ia-mine [-h | --version | --configure]
