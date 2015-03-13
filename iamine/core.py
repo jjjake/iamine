@@ -97,20 +97,31 @@ class Miner:
             params['fl[{}]'.format(i)] = 'identifier'
 
         search_params = self.get_search_params(query, params)
+        # If returning entire index and sort parameter is not set,
+        # sort by most downloaded.
+        if search_params['q'] == "(*:*)" and not any('sort' in k for k in search_params):
+            search_params['sort[]'] = 'downloads desc'
+
         url = self.make_url(path='/advancedsearch.php')
 
         search_info = yield from self.get_search_info(url, search_params)
         total_results = search_info.get('response', {}).get('numFound', 0)
-        total_pages = (int(total_results/search_params['rows']))
+        total_pages = (int(total_results/search_params['rows']) + 1)
 
+        requests = []
         for page in range(1, (total_pages + 2)):
             params = deepcopy(search_params)
             params['page'] = page
             cb = functools.partial(self._handle_search_results, callback=callback,
                                    mine_ids=mine_ids)
-            task = asyncio.Task(self.add_requests([(url, params, cb)]))
-            task.add_done_callback(self.tasks.remove)
-            self.tasks.add(task)
+            requests.append((url, params, cb))
+            # Submit 5 tasks at a time.
+            if (page % 5 == 0) or (page == total_pages):
+                task = asyncio.Task(self.add_requests(requests))
+                task.add_done_callback(self.tasks.remove)
+                self.tasks.add(task)
+                yield from asyncio.sleep(.01)
+                requests = []
 
         # Sleep until all tasks are complete.
         while self.tasks:

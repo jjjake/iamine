@@ -11,7 +11,7 @@ What Is IA Mine?
 IA Mine is a command line tool and Python 3 library for data mining
 the Internet Archive.
 
-**Note: Documentation in currently in progress.**
+**Note: Documentation currently in progress.**
 
 
 How Do I Get Started?
@@ -35,10 +35,10 @@ py3.4 binary.
 .. code:: bash
 
     # Download ia-mine and make it executable.
-    $ curl -L https://archive.org/download/iamine-pex/ia-mine-0.1.5-py3.4.pex > ia-mine
+    $ curl -L https://archive.org/download/iamine-pex/ia-mine-0.1.6-py3.4.pex > ia-mine
     $ chmod +x ia-mine
     $ ./ia-mine -v
-    0.1.5
+    0.1.6
     
 
 Python Library

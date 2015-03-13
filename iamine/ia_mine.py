@@ -3,10 +3,10 @@
 
 usage: ia-mine (<itemlist> | -) [--workers WORKERS] [--cache]
                [--retries RETRIES] [--secure] [--hosts HOSTS]
-       ia-mine --search QUERY [[--info | --info --field FIELD...]
-               |--num-found | --mine-ids | --field FIELD... | --itemlist]
-               [--rows ROWS] [--workers WORKERS] [--cache] [--retries RETRIES]
-               [--secure] [--hosts HOSTS]
+       ia-mine [--all | --search QUERY] [[--info | --info --field FIELD...]
+               |--num-found | --mine-ids | --field FIELD... | --sort ORDER... |
+               --itemlist] [--rows ROWS] [--workers WORKERS] [--cache] 
+               [--retries RETRIES] [--secure] [--hosts HOSTS]
        ia-mine [-h | --version | --configure]
 
 positional arguments:
@@ -19,12 +19,14 @@ optional arguments:
   -h, --help            Show this help message and exit.
   -v, --version         Show program's version number and exit.
   --configure           Configure ia-mine to use your Archive.org credentials.
+  -a, --all             Mine all indexed items.
   -s, --search QUERY    Mine search results. For help formatting your query,
                         see: https://archive.org/advancedsearch.php
   -m, --mine-ids        Mine items returned from search results.
                         [default: False]
   -i, --info            Print search result response header to stdout and exit.
   -f, --field FIELD     Fields to include in search results.
+  --sort ORDER          Sort search results.
   -i, --itemlist        Print identifiers only to stdout. [default: False]
   -n, --num-found       Print the number of items found for the given search
                         query.
@@ -40,7 +42,7 @@ optional arguments:
   -r, --retries RETRIES
                         The maximum number of retries for each item.
                         [default: 10]
-  -s, --secure          Use HTTPS. HTTP is used by default.
+  --secure              Use HTTPS. HTTP is used by default.
   -H, --hosts HOSTS     A file containing a list of hosts to shuffle through.
 
 """
@@ -84,6 +86,7 @@ def main(argv=None):
     schema = Schema({object: bool,
         '--search': Or(None, Use(str)),
         '--field': list,
+        '--sort': list,
         '--rows': Use(int,
             error='"{}" should be an integer'.format(args['--rows'])),
         '--hosts': Or(None, Use( parse_hosts,
@@ -112,7 +115,8 @@ def main(argv=None):
         sys.exit(0)
 
     # Search.
-    if args['--search']:
+    if args['--search'] or args['--all']:
+        query = '(*:*)' if not args['--search'] else args['--search']
         callback = print_itemlist if args['--itemlist'] else None
         info_only = True if args['--info'] or args['--num-found'] else False 
         params = {
@@ -120,7 +124,9 @@ def main(argv=None):
         }
         for i, f in enumerate(args['--field']):
             params['fl[{}]'.format(i)] = f
-        r = search(args['--search'],
+        for i, f in enumerate(args['--sort']):
+            params['sort[{}]'.format(i)] = f
+        r = search(query,
                 params=params,
                 callback=callback,
                 mine_ids=args['--mine-ids'],
@@ -147,3 +153,7 @@ def main(argv=None):
                    retries=args['--retries'],
                    secure=args['--secure'],
                    hosts=args['--hosts'])
+
+
+if __name__ == '__main__':
+    main()
