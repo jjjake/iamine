@@ -73,3 +73,9 @@ binaries can be downloaded at `http://stedolan.github.io/jq/download/
 
 ``ia-mine`` can mine Archive.org search results, the items returned from
 search results, or items provide via an itemlist or stdin.
+
+
+Developers
+==========
+
+Please report any bugs or issues on github: __ https://github.com/jjjake/iamine
