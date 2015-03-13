@@ -1,8 +1,5 @@
 import signal
 import asyncio
-import urllib.parse
-import urllib.request
-import json
 from getpass import getpass
 
 from .core import Miner
@@ -23,12 +20,10 @@ def search(query=None, params=None, callback=None, mine_ids=None, info_only=None
     miner = Miner(loop, **kwargs)
 
     if info_only:
-        url = miner.make_url('/advancedsearch.php?')
-        params = urllib.parse.urlencode(miner.get_search_params(query, params))
-        resp = urllib.request.urlopen(url + params)
-        j = json.loads(resp.read().decode('utf-8'))
-        search_info = j['responseHeader']
-        search_info['numFound'] = j.get('response', {}).get('numFound', 0)
+        params = miner.get_search_params(query, params)
+        r = loop.run_until_complete(miner.get_search_info(params))
+        search_info = r.get('responseHeader')
+        search_info['numFound'] = r.get('response', {}).get('numFound', 0)
         return search_info
 
     try:

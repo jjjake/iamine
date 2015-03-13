@@ -1,54 +1,65 @@
 import os.path
 import configparser
-import urllib.parse
-import urllib.request
-import http.cookiejar
 import json
+import asyncio
+
+import aiohttp
 
 from .exceptions import AuthenticationException
 
 
-def get_auth_config(username, password):
-    cj = http.cookiejar.CookieJar()
+@asyncio.coroutine
+def _get_auth_config(username, password):
+    conn = aiohttp.connector.TCPConnector(share_cookies=True)
 
-    # Get logged-in cookies.
-    url = 'https://archive.org/account/login.php'
-    data = ('remember=CHECKED&action=login&'
-            'username={0}&password={1}'.format(username, password))
-    encoded_data = data.encode('utf-8')
-    headers = {'Cookie': 'test-cookie="1"'}
+    # Login POST data.
+    data = dict(
+        # Cookies will expire very quickly without remember=CHECKED.
+        remember='CHECKED',
+        action='login',
+        username=username,
+        password=password,
+    )
 
-    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
-    req = urllib.request.Request(url, data=encoded_data, headers=headers)
-    opener.open(req)
+    # Login to Archive.org and add logged-in cookies to connector.
+    r = yield from aiohttp.request(
+            method='POST',
+            url='https://archive.org/account/login.php',
+            auth=aiohttp.helpers.BasicAuth(login=username, password=password),
+            data=data,
+            headers={'Cookie': 'test-cookie=1'},
+            connector=conn)
 
-    # Get S3 keys.
-    url = 'https://archive.org/account/s3.php?output_json=1'
-    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
-    r = opener.open(url)
-    j = json.loads(r.read().decode('utf-8'))
-
-    if not j.get('success'):
+    # Archive.org returns 200 for failed authentication,
+    # detect auth failure by some other means.
+    if 'logged-in-user' not in conn.cookies:
         raise AuthenticationException(
             'Failed to authenticate. Please check your credentials and try again.')
 
-    # Parse S3 keys and cookies to auth_config.
-    s3_keys = {
-        'access': j.get('key', {}).get('s3accesskey'),
-        'secret': j.get('key', {}).get('s3secretkey'),
-    }
-
-    cookies = {}
-    ia_cookies = cj._cookies.get('.archive.org', {}).get('/')
-    for c in ia_cookies:
-        if 'logged-in-' in c:
-            cookies[c] = ia_cookies[c].value
+    # Get S3 keys using the cookies attached to the connector
+    r = yield from aiohttp.request(
+            method='GET',
+            url='https://archive.org/account/s3.php',
+            params=dict(output_json=1),
+            connector=conn)
+    j = json.loads((yield from r.read()).decode('utf-8'))
 
     auth_config = {
-        's3': s3_keys,
-        'cookies': cookies,
+        's3': {
+            'access': j.get('key', {}).get('s3accesskey'),
+            'secret': j.get('key', {}).get('s3secretkey'),
+        },
+        'cookies': {
+            'logged-in-user': conn.cookies.get('logged-in-user').value,
+            'logged-in-sig': conn.cookies.get('logged-in-sig').value,
+        }
     }
     return auth_config
+
+
+def get_auth_config(username, password):
+    loop = asyncio.get_event_loop()
+    return loop.run_until_complete(_get_auth_config(username, password))
 
 
 def get_config_file():

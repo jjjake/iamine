@@ -5,7 +5,7 @@ usage: ia-mine (<itemlist> | -) [--workers WORKERS] [--cache]
                [--retries RETRIES] [--secure] [--hosts HOSTS]
        ia-mine [--all | --search QUERY] [[--info | --info --field FIELD...]
                |--num-found | --mine-ids | --field FIELD... | --sort ORDER... |
-               --itemlist] [--rows ROWS] [--workers WORKERS] [--cache] 
+               --itemlist] [--rows ROWS] [--workers WORKERS] [--cache]
                [--retries RETRIES] [--secure] [--hosts HOSTS]
        ia-mine [-h | --version | --configure]
 
@@ -118,7 +118,7 @@ def main(argv=None):
     if args['--search'] or args['--all']:
         query = '(*:*)' if not args['--search'] else args['--search']
         callback = print_itemlist if args['--itemlist'] else None
-        info_only = True if args['--info'] or args['--num-found'] else False 
+        info_only = True if args['--info'] or args['--num-found'] else False
         params = {
             'rows': args['--rows']
         }

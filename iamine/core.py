@@ -104,7 +104,7 @@ class Miner:
 
         url = self.make_url(path='/advancedsearch.php')
 
-        search_info = yield from self.get_search_info(url, search_params)
+        search_info = yield from self.get_search_info(search_params)
         total_results = search_info.get('response', {}).get('numFound', 0)
         total_pages = (int(total_results/search_params['rows']) + 1)
 
@@ -142,7 +142,8 @@ class Miner:
             search_params['rows'] = default_rows
         return search_params
 
-    def get_search_info(self, url, params):
+    def get_search_info(self, params):
+        url = self.make_url('/advancedsearch.php?')
         p = deepcopy(params)
         p['rows'] = 0
         resp = yield from aiohttp.request('get', url, params=p)
