@@ -78,4 +78,5 @@ search results, or items provide via an itemlist or stdin.
 Developers
 ==========
 
-Please report any bugs or issues on github: __ https://github.com/jjjake/iamine
+Please report any bugs or issues on github:
+`https://github.com/jjjake/iamine <https://github.com/jjjake/iamine>`_
