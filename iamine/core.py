@@ -2,10 +2,12 @@ import os
 import sys
 import locale
 import urllib.parse
+import urllib.request
 import asyncio
 import functools
 from copy import deepcopy
 import random
+import time
 try:
     import ujson as json
 except ImportError:
@@ -50,6 +52,29 @@ class Miner:
         self.loop = loop
         self.sem = asyncio.Semaphore(max_tasks)
         self.connector = aiohttp.TCPConnector(share_cookies=True, loop=loop)
+
+        # Rate limiting.
+        self._max_per_second = self.get_global_rate_limit()
+        self._min_interval = 1.0 / float(self._max_per_second)
+        self._last_time_called = 0.0
+
+    def get_global_rate_limit(self):
+        r = urllib.request.urlopen('https://archive.org/metadata/iamine-rate-limiter')
+        j = json.loads(r.read().decode('utf-8'))
+        return j.get('metadata', {}).get('rate_per_second', 300)
+
+    def rate_limited():
+        def decorate(func):
+            def rate_limited_func(self, *args, **kwargs):
+                elapsed = time.monotonic() - self._last_time_called
+                self.left_to_wait = self._min_interval - elapsed
+                if self.left_to_wait > 0:
+                    time.sleep(self.left_to_wait)
+                func(self, *args, **kwargs)
+                self._last_time_called = time.monotonic()
+                yield from func(self, *args, **kwargs)
+            return rate_limited_func
+        return decorate
 
     @asyncio.coroutine
     def mine_items(self, identifiers, params=None, callback=None):
@@ -181,6 +206,7 @@ class Miner:
             task.add_done_callback(self.tasks.remove)
             self.tasks.add(task)
 
+    @rate_limited()
     @asyncio.coroutine
     def make_request(self, url, params=None, callback=None):
         params = {'dontcache': 1} if not params else params
