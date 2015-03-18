@@ -6,8 +6,39 @@ from .core import Miner
 from .config import write_config_file
 
 
+def get_miner(**kwargs):
+    return Miner(**kwargs)
+
 def search(query=None, params=None, callback=None, mine_ids=None, info_only=None,
            **kwargs):
+    """Mine Archive.org search results.
+
+    :param query: (optional) The Archive.org search query to yield
+                  results for. Refer to https://archive.org/advancedsearch.php#raw
+                  for help formatting your query. If no query is given,
+                  all indexed items will be mined!
+    :type query: str
+
+    :param params: (optional) The URL parameters to send with each
+                   request sent to the Archive.org Advancedsearch Api.
+    :type params: dict
+
+    :param callback: (optional) A callback function to be called on each
+                     :py:class:`aiohttp.client.ClientResponse`.
+
+    :param mine_ids: (optional) By default, ``search`` mines through
+                     search results. To mine through the item metadata
+                     for each item returned by your query instead, set
+                     ``mine_ids`` to ``True``.
+    :type mine_ids: bool
+
+    :param info_only: (optional) Set to ``True`` to return information
+                      about your query rather than mining any metadata
+                      or search results.
+    :type info_only: bool
+
+    :param \*\*kwargs: (optional) Arguments that ``get_miner`` takes.
+    """
     query = '(*:*)' if not query else query
     params = params if params else {}
     mine_ids = True if mine_ids else False
@@ -34,17 +65,46 @@ def search(query=None, params=None, callback=None, mine_ids=None, info_only=None
         pass
 
 
+def mine_urls(urls, params=None, callback=None, **kwargs):
+    """Concurrently retrieve URLs.
+
+    :param urls: A set of URLs to concurrently retrieve.
+    :type urls: iterable
+
+    :param params: (optional) The URL parameters to send with each
+                   request.
+    :type params: dict
+
+    :param callback: (optional) A callback function to be called on each
+                     :py:class:`aiohttp.client.ClientResponse`.
+
+    :param \*\*kwargs: (optional) Arguments that ``get_miner`` takes.
+    """
+    if not kwargs.get('loop'):
+        loop = asyncio.get_event_loop()
+    else:
+        loop = kwargs['loop']
+    miner = get_miner(loop, **kwargs)
+    try:
+        loop.add_signal_handler(signal.SIGINT, loop.stop)
+        loop.run_until_complete(miner.mine_urls(urls, params, callback))
+    except RuntimeError:
+        pass
+
 def mine_items(identifiers, params=None, callback=None, **kwargs):
     """Concurrently retrieve metadata from Archive.org items.
 
-    Args:
-        identifiers: An iterable yielding Archive.org item identifiers.
-        response_callback: A callback function to call on each
-            aiohttp.client.ClientResponse object successfully returned.
-        max_tasks: The maximum number of tasks to run concurrently.
-        max_retries: The maximum number of times to retry a given request.
-        secure: A boolean indicating if a secure connection should be used or not.
-        hosts: A list of hosts to cycle through randomly for each request.
+    :param identifiers: A set of Archive.org item identifiers to mine.
+    :type identifiers: iterable
+
+    :param params: (optional) The URL parameters to send with each
+                   request.
+    :type params: dict
+
+    :param callback: (optional) A callback function to be called on each
+                     :py:class:`aiohttp.client.ClientResponse`.
+
+    :param \*\*kwargs: (optional) Arguments that ``get_miner`` takes.
     """
     if not kwargs.get('loop'):
         loop = asyncio.get_event_loop()
@@ -53,12 +113,13 @@ def mine_items(identifiers, params=None, callback=None, **kwargs):
     miner = Miner(loop, **kwargs)
     try:
         loop.add_signal_handler(signal.SIGINT, loop.stop)
-        loop.run_until_complete(miner.mine_items(identifiers, callback))
+        loop.run_until_complete(miner.mine_items(identifiers, params, callback))
     except RuntimeError:
         pass
 
 
 def configure(username=None, password=None, overwrite=None):
+    """Configure IA Mine with your Archive.org credentials."""
     username = input('Email address: ') if not username else username
     password = getpass('Password: ') if not password else password
     write_config_file(username, password, overwrite)
