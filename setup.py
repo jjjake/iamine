@@ -38,10 +38,10 @@ setup(
             'mine_items = iamine.api:mine_items',
         ],
         'internetarchive.cli.plugins': [
-            'ia_mine = iamine.ia_mine',
+            'ia_mine = iamine.__main__',
         ],
         'console_scripts': [
-            'ia-mine = iamine.ia_mine:main',
+            'ia-mine = iamine.__main__:main',
         ],
     },
     classifiers=[
