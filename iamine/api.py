@@ -9,6 +9,7 @@ from .config import write_config_file
 def get_miner(**kwargs):
     return Miner(**kwargs)
 
+
 def search(query=None, params=None, callback=None, mine_ids=None, info_only=None,
            **kwargs):
     """Mine Archive.org search results.
@@ -90,6 +91,7 @@ def mine_urls(urls, params=None, callback=None, **kwargs):
         loop.run_until_complete(miner.mine_urls(urls, params, callback))
     except RuntimeError:
         pass
+
 
 def mine_items(identifiers, params=None, callback=None, **kwargs):
     """Concurrently retrieve metadata from Archive.org items.

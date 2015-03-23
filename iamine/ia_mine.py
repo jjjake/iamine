@@ -58,7 +58,7 @@ from docopt import docopt, DocoptExit
 from schema import Schema, Use, Or, SchemaError
 
 from .api import mine_items, search, configure
-from ._version import __version__
+from . import __version__
 from .exceptions import AuthenticationException
 
 
@@ -89,7 +89,7 @@ def main(argv=None):
         '--sort': list,
         '--rows': Use(int,
             error='"{}" should be an integer'.format(args['--rows'])),
-        '--hosts': Or(None, Use( parse_hosts,
+        '--hosts': Or(None, Use(parse_hosts,
             error='"{}" should be a readable file.'.format(args['--hosts']))),
         '--retries': Use(int, '"{}" should be an integer.'.format(args['--retries'])),
         '<itemlist>': Use(open_file_or_stdin,

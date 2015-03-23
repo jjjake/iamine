@@ -6,7 +6,6 @@ import urllib.request
 import asyncio
 import functools
 from copy import deepcopy
-import random
 import time
 try:
     import ujson as json
@@ -15,7 +14,7 @@ except ImportError:
 
 import aiohttp
 
-from ._version import __version__
+from . import __version__
 from .config import get_config
 from .urls import metadata_urls, make_url
 
@@ -41,7 +40,8 @@ class Miner(object):
 
         # Set User-agent.
         uname = os.uname()
-        lang = locale.getlocale()[0][:2]
+        _locale = locale.getlocale()[0][:2]
+        lang = _locale[0][:2] if _locale else ''
         py_version = '{0}.{1}.{2}'.format(*sys.version_info)
         user = urllib.parse.unquote(config.get('cookies', {}).get('logged-in-user', ''))
         ua = 'ia-mine/{0} ({1} {2}; N; {3}; {4}) Python/{5}'.format(

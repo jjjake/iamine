@@ -9,12 +9,12 @@ Concurrently retrieve metadata from Archive.org items.
 :license: AGPL 3, see LICENSE for more details.
 """
 __title__ = 'iamine'
+__version__ = '0.1.9'
 __author__ = 'Jacob M. Johnson'
 __license__ = 'AGPL 3'
 __copyright__ = 'Copyright 2015 Internet Archive'
 
 
-from ._version import __version__
 from .core import Miner
 from .api import get_miner, mine_items, search, mine_urls
 

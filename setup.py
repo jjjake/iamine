@@ -6,7 +6,7 @@ from codecs import open
 
 
 _version_re = re.compile(r'__version__\s+=\s+(.*)')
-with open('iamine/_version.py', 'rb', 'utf-8') as f:
+with open('iamine/__init__.py', 'rb', 'utf-8') as f:
     version = str(ast.literal_eval(_version_re.search(f.read()).group(1)))
 
 if sys.version_info <= (3,):

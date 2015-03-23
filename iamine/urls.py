@@ -1,3 +1,6 @@
+import random
+
+
 def make_url(path, protocol=None, hosts=None):
     """Make an URL given a path, and optionally, a protocol and set of
     hosts to select from randomly.
