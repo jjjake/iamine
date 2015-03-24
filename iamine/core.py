@@ -36,12 +36,12 @@ class Miner(object):
         self.hosts = hosts
         self.config = config
         self.debug = debug
-        self.cookies = config.get('cookies')
+        self.cookies = config.get('cookies', {})
 
         # Set User-agent.
         uname = os.uname()
-        _locale = locale.getlocale()[0][:2]
-        lang = _locale[0][:2] if _locale else ''
+        _locale = locale.getlocale()[0]
+        lang = _locale[:2] if _locale else ''
         py_version = '{0}.{1}.{2}'.format(*sys.version_info)
         user = urllib.parse.unquote(config.get('cookies', {}).get('logged-in-user', ''))
         ua = 'ia-mine/{0} ({1} {2}; N; {3}; {4}) Python/{5}'.format(
