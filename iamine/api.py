@@ -1,13 +1,8 @@
 import signal
-import asyncio
 from getpass import getpass
 
-from .core import Miner
+from .core import Miner, ItemMiner, SearchMiner
 from .config import write_config_file
-
-
-def get_miner(**kwargs):
-    return Miner(**kwargs)
 
 
 def search(query=None, params=None, callback=None, mine_ids=None, info_only=None,
@@ -44,24 +39,19 @@ def search(query=None, params=None, callback=None, mine_ids=None, info_only=None
     params = params if params else {}
     mine_ids = True if mine_ids else False
     info_only = True if info_only else False
-
-    if not kwargs.get('loop'):
-        loop = asyncio.get_event_loop()
-    else:
-        loop = kwargs['loop']
-    miner = Miner(loop, **kwargs)
+    miner = SearchMiner(**kwargs)
 
     if info_only:
         params = miner.get_search_params(query, params)
-        r = loop.run_until_complete(miner.get_search_info(params))
+        r = miner.loop.run_until_complete(miner.get_search_info(params))
         search_info = r.get('responseHeader')
         search_info['numFound'] = r.get('response', {}).get('numFound', 0)
         return search_info
 
     try:
-        loop.add_signal_handler(signal.SIGINT, loop.stop)
-        loop.run_until_complete(miner.search(query, params=params, callback=callback,
-                                             mine_ids=mine_ids))
+        miner.loop.add_signal_handler(signal.SIGINT, miner.loop.stop)
+        miner.loop.run_until_complete(
+                miner.search(query, params=params, callback=callback, mine_ids=mine_ids))
     except RuntimeError:
         pass
 
@@ -81,14 +71,10 @@ def mine_urls(urls, params=None, callback=None, **kwargs):
 
     :param \*\*kwargs: (optional) Arguments that ``get_miner`` takes.
     """
-    if not kwargs.get('loop'):
-        loop = asyncio.get_event_loop()
-    else:
-        loop = kwargs['loop']
-    miner = get_miner(loop, **kwargs)
+    miner = Miner(**kwargs)
     try:
-        loop.add_signal_handler(signal.SIGINT, loop.stop)
-        loop.run_until_complete(miner.mine_urls(urls, params, callback))
+        miner.loop.add_signal_handler(signal.SIGINT, miner.loop.stop)
+        miner.loop.run_until_complete(miner.mine_urls(urls, params, callback))
     except RuntimeError:
         pass
 
@@ -108,14 +94,10 @@ def mine_items(identifiers, params=None, callback=None, **kwargs):
 
     :param \*\*kwargs: (optional) Arguments that ``get_miner`` takes.
     """
-    if not kwargs.get('loop'):
-        loop = asyncio.get_event_loop()
-    else:
-        loop = kwargs['loop']
-    miner = Miner(loop, **kwargs)
+    miner = ItemMiner(**kwargs)
     try:
-        loop.add_signal_handler(signal.SIGINT, loop.stop)
-        loop.run_until_complete(miner.mine_items(identifiers, params, callback))
+        miner.loop.add_signal_handler(signal.SIGINT, miner.loop.stop)
+        miner.loop.run_until_complete(miner.mine_items(identifiers, params, callback))
     except RuntimeError:
         pass
 

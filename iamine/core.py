@@ -1,21 +1,16 @@
-import os
-import sys
-import locale
-import urllib.parse
 import urllib.request
-import asyncio
-import functools
-from copy import deepcopy
-import time
 try:
     import ujson as json
 except ImportError:
     import json
+import asyncio
+from copy import deepcopy
+import time
 
 import aiohttp
 
-from . import __version__
 from .config import get_config
+from .requests import MineRequest
 from .urls import metadata_urls, make_url
 
 
@@ -36,24 +31,15 @@ class Miner(object):
         self.hosts = hosts
         self.config = config
         self.debug = debug
-        self.cookies = config.get('cookies', {})
 
-        # Set User-agent.
-        uname = os.uname()
-        _locale = locale.getlocale()[0]
-        lang = _locale[:2] if _locale else ''
-        py_version = '{0}.{1}.{2}'.format(*sys.version_info)
-        user = urllib.parse.unquote(config.get('cookies', {}).get('logged-in-user', ''))
-        ua = 'ia-mine/{0} ({1} {2}; N; {3}; {4}) Python/{5}'.format(
-            __version__, uname.sysname, uname.machine, lang, user, py_version)
-        self.headers = {'User-agent': ua}
+        self.cookies = config.get('cookies', {})
+        self.connector = aiohttp.TCPConnector(share_cookies=True, loop=loop)
+        self.connector.update_cookies(self.cookies)
 
         # Asyncio/Aiohttp settings.
         self.tasks = set()
         self.loop = loop
         self.sem = asyncio.Semaphore(max_tasks)
-        self.connector = aiohttp.TCPConnector(share_cookies=True, loop=loop)
-        self.connector.update_cookies(self.cookies)
 
         # Rate limiting.
         self._max_per_second = self.get_global_rate_limit()
@@ -72,11 +58,16 @@ class Miner(object):
 
     @asyncio.coroutine
     def mine_urls(self, urls, params=None, callback=None):
-        callback = functools.partial(self._handle_response, callback=callback)
-
         def _md_request_generator():
             for url in urls:
-                yield (url, params, callback)
+                resp = MineRequest('GET', url,
+                           callback=callback,
+                           max_retries=self.max_retries,
+                           debug=self.debug,
+                           params=params,
+                           connector=self.connector
+                       )
+                yield resp
 
         task = asyncio.Task(self.add_requests(_md_request_generator()))
         task.add_done_callback(self.tasks.remove)
@@ -85,6 +76,42 @@ class Miner(object):
         # Sleep until all tasks are complete.
         while self.tasks:
             yield from asyncio.sleep(.1)
+
+    @asyncio.coroutine
+    def add_requests(self, requests):
+        for request in requests:
+            yield from self.sem.acquire()
+            task = asyncio.Task(self.make_rate_limited_request(request))
+            task.add_done_callback(lambda t: self.sem.release())
+            task.add_done_callback(self.tasks.remove)
+            self.tasks.add(task)
+
+    def _rate_limited():
+        """A rate limit decorator for limiting the number of times the
+        decorated :class:`Miner` method can be called. Limits are set in
+        :attr:`Miner._max_per_second`.
+        """
+        def decorate(func):
+            def rate_limited_func(self, *args, **kwargs):
+                elapsed = time.monotonic() - self._last_time_called
+                self.left_to_wait = self._min_interval - elapsed
+                if self.left_to_wait > 0:
+                    time.sleep(self.left_to_wait)
+                func(self, *args, **kwargs)
+                self._last_time_called = time.monotonic()
+                yield from func(self, *args, **kwargs)
+            return rate_limited_func
+        return decorate
+
+    @_rate_limited()
+    def make_rate_limited_request(self, request):
+        yield from request.make_request()
+
+
+class ItemMiner(Miner):
+
+    def __init__(self, **kwargs):
+        super(ItemMiner, self).__init__(**kwargs)
 
     @asyncio.coroutine
     def mine_items(self, identifiers, params=None, callback=None):
@@ -101,20 +128,16 @@ class Miner(object):
                          :py:class:`aiohttp.client.ClientResponse`.
         :type callback: func
         """
-        callback = functools.partial(self._handle_response, callback=callback)
         # By default, don't cache item metadata in redis.
         params = {'dontcache': 1} if not params else {}
         urls = metadata_urls(identifiers, self.protocol, self.hosts)
         yield from self.mine_urls(urls, params, callback)
 
-    @asyncio.coroutine
-    def add_requests(self, requests):
-        for url, params, callback in requests:
-            yield from self.sem.acquire()
-            task = asyncio.Task(self.make_request(url, params, callback))
-            task.add_done_callback(lambda t: self.sem.release())
-            task.add_done_callback(self.tasks.remove)
-            self.tasks.add(task)
+
+class SearchMiner(ItemMiner):
+
+    def __init__(self, **kwargs):
+        super(SearchMiner, self).__init__(**kwargs)
 
     @asyncio.coroutine
     def search(self, query=None, params=None, callback=None, mine_ids=None):
@@ -159,9 +182,14 @@ class Miner(object):
         for page in range(1, (total_pages + 2)):
             params = deepcopy(search_params)
             params['page'] = page
-            cb = functools.partial(self._handle_search_results, callback=callback,
-                                   mine_ids=mine_ids)
-            requests.append((url, params, cb))
+            if not callback and mine_ids:
+                callback = self._handle_search_results
+            request = MineRequest('GET', url,
+                          callback=callback,
+                          max_retries=self.max_retries,
+                          params=params
+                      )
+            requests.append(request)
             # Submit 5 tasks at a time.
             if (page % 5 == 0) or (page == total_pages):
                 task = asyncio.Task(self.add_requests(requests))
@@ -200,81 +228,13 @@ class Miner(object):
 
     @asyncio.coroutine
     def _handle_search_results(self, resp, mine_ids=None, params=None, callback=None):
-        params = {'dontcache': 1} if not params else params
-        callback = functools.partial(self._handle_response, callback=callback)
-
-        if not mine_ids:
-            task = asyncio.Task(self._handle_response(resp, callback=callback))
-            task.add_done_callback(self.tasks.remove)
-            self.tasks.add(task)
-        else:
-            j = yield from resp.json(encoding='utf-8')
-            resp.close()
-            requests = []
-            for doc in j.get('response', {}).get('docs', []):
-                url = make_url('/metadata/{}'.format(doc['identifier']),
-                        self.protocol, self.hosts)
-                requests.append((url, params, callback))
-            if requests:
-                task = asyncio.Task(self.add_requests(requests))
-                task.add_done_callback(self.tasks.remove)
-                self.tasks.add(task)
-
-    @asyncio.coroutine
-    def _handle_response(self, resp, callback=None):
-        if callback:
-            yield from callback(resp)
-            resp.close()
-        else:
-            content = yield from resp.read()
-            resp.close()
-            print(content.decode('utf-8'))
-
-    def _rate_limited():
-        """A rate limit decorator for limiting the number of times the
-        decorated :class:`Miner` method can be called. Limits are set in
-        :attr:`Miner._max_per_second`.
-        """
-        def decorate(func):
-            def rate_limited_func(self, *args, **kwargs):
-                elapsed = time.monotonic() - self._last_time_called
-                self.left_to_wait = self._min_interval - elapsed
-                if self.left_to_wait > 0:
-                    time.sleep(self.left_to_wait)
-                func(self, *args, **kwargs)
-                self._last_time_called = time.monotonic()
-                yield from func(self, *args, **kwargs)
-            return rate_limited_func
-        return decorate
-
-    @_rate_limited()
-    @asyncio.coroutine
-    def make_request(self, url, params=None, callback=None):
-        params = {'dontcache': 1} if not params else params
-        retry = 0
-        while True:
-            retry += 1
-            try:
-                resp = yield from aiohttp.request('GET', url, params=params,
-                                                  headers=self.headers,
-                                                  connector=self.connector)
-                if callback:
-                    return (yield from callback(resp))
-                else:
-                    return resp
-            except Exception as exc:
-                error = {
-                    'url': url,
-                    'params': params,
-                    'error': exc.__doc__,
-                }
-                if self.debug:
-                    error['callback'] = repr(callback)
-                    error['exception'] = repr(exc)
-                    error['retries_left'] = self.max_retries - retry
-                    sys.stderr.write('{}\n'.format(json.dumps(error)))
-                elif retry >= self.max_retries:
-                    error['error'] = 'Maximum retries exceeded for url, giving up.'
-                    sys.stderr.write('{}\n'.format(json.dumps(error)))
-                    return
-                yield from asyncio.sleep(1)
+        j = yield from resp.json(encoding='utf-8')
+        resp.close()
+        identifiers = []
+        for doc in j.get('response', {}).get('docs', []):
+            if not doc.get('identifier'):
+                continue
+            identifiers.append(doc['identifier'])
+        task = asyncio.Task(self.mine_items(identifiers, params, callback))
+        task.add_done_callback(self.tasks.remove)
+        self.tasks.add(task)
