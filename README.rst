@@ -30,10 +30,10 @@ simply download one of the latest binaries from
 .. code:: bash
 
     # Download ia-mine and make it executable.
-    $ curl -L https://archive.org/download/iamine-pex/ia-mine-0.2.0.pex > ia-mine
+    $ curl -L https://archive.org/download/iamine-pex/ia-mine-0.2.2.pex > ia-mine
     $ chmod +x ia-mine
     $ ./ia-mine -v
-    0.2.0
+    0.2.2
     
 
 Python Library
