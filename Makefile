@@ -11,8 +11,8 @@ clean-pex:
 
 wheels:
 	rm -rf wheelhouse
-	pip3 wheel .
-	pip3.3 wheel -r requirements.txt
+	pip wheel .
+	pip wheel -r requirements.txt
 
 binaries: clean-pex wheels
 	pex -vvv --python=python3.3 --no-pypi --repo=wheelhouse/ -r docopt -r asyncio -r iamine -e iamine.ia_mine:main --pex-name=ia-mine-$(VERSION)-py3.3.pex
