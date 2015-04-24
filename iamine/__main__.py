@@ -4,8 +4,8 @@
 usage: ia-mine (<itemlist> | -) [--workers WORKERS] [--cache]
                [--retries RETRIES] [--secure] [--hosts HOSTS]
        ia-mine [--all | --search QUERY] [[--info | --info --field FIELD...]
-               |--num-found | --mine-ids | --field FIELD... | --sort ORDER... |
-               --itemlist] [--rows ROWS] [--workers WORKERS] [--cache]
+               |--num-found | --mine-ids | --field FIELD... | --itemlist]
+               [--rows ROWS] [--workers WORKERS] [--cache]
                [--retries RETRIES] [--secure] [--hosts HOSTS]
        ia-mine [-h | --version | --configure]
 
@@ -26,7 +26,6 @@ optional arguments:
                         [default: False]
   -i, --info            Print search result response header to stdout and exit.
   -f, --field FIELD     Fields to include in search results.
-  --sort ORDER          Sort search results.
   -i, --itemlist        Print identifiers only to stdout. [default: False]
   -n, --num-found       Print the number of items found for the given search
                         query.
@@ -86,7 +85,6 @@ def main(argv=None):
     schema = Schema({object: bool,
         '--search': Or(None, Use(str)),
         '--field': list,
-        '--sort': list,
         '--rows': Use(int,
             error='"{}" should be an integer'.format(args['--rows'])),
         '--hosts': Or(None, Use(parse_hosts,
@@ -124,8 +122,6 @@ def main(argv=None):
         }
         for i, f in enumerate(args['--field']):
             params['fl[{}]'.format(i)] = f
-        for i, f in enumerate(args['--sort']):
-            params['sort[{}]'.format(i)] = f
         r = search(query,
                 params=params,
                 callback=callback,
