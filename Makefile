@@ -15,8 +15,8 @@ wheels:
 	pip wheel -r requirements.txt
 
 binaries: clean-pex wheels
-	pex -vvv --python=python3.3 --no-pypi --repo=wheelhouse/ -r docopt -r asyncio -r iamine -e iamine.ia_mine:main --pex-name=ia-mine-$(VERSION)-py3.3.pex
-	pex -vvv --python=python3.4 --no-pypi --repo=wheelhouse/ -r docopt -r iamine -e iamine.ia_mine:main --pex-name=ia-mine-$(VERSION)-py3.4.pex
+	# Use patched version of pex to support custom hashbang.
+	.venv/bin/pex -vvv --hashbang='#!/usr/bin/env python3' --repo=wheelhouse --no-pypi -r aiohttp -r asyncio -r docopt -r iamine -r schema -e iamine.__main__:main -p ia-mine-0.2.2.pex
 
 publish-binaries:
 	wget -nc https://archive.org/download/ia-pex/ia-0.7.9-python2.7.pex
