@@ -9,7 +9,7 @@ Concurrently retrieve metadata from Archive.org items.
 :license: AGPL 3, see LICENSE for more details.
 """
 __title__ = 'iamine'
-__version__ = '0.2.1'
+__version__ = '0.2.2'
 __author__ = 'Jacob M. Johnson'
 __license__ = 'AGPL 3'
 __copyright__ = 'Copyright 2015 Internet Archive'
