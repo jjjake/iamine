@@ -170,7 +170,7 @@ class Miner(object):
             yield from asyncio.sleep(.1)
 
     def get_search_params(self, query, params):
-        default_rows = 1000
+        default_rows = 500
         search_params = {
             'q': '(*:*)',
             'page': 1,
