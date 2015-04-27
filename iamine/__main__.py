@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Concurrently retrieve metadata from Archive.org items.
 
-usage: ia-mine (<itemlist> | -) [--workers WORKERS] [--cache]
+usage: ia-mine (<itemlist> | -) [--debug] [--workers WORKERS] [--cache]
                [--retries RETRIES] [--secure] [--hosts HOSTS]
        ia-mine [--all | --search QUERY] [[--info | --info --field FIELD...]
-               |--num-found | --mine-ids | --field FIELD... | --sort ORDER... |
-               --itemlist] [--rows ROWS] [--workers WORKERS] [--cache]
+               |--num-found | --mine-ids | --field FIELD... | --itemlist]
+               [--debug] [--rows ROWS] [--workers WORKERS] [--cache]
                [--retries RETRIES] [--secure] [--hosts HOSTS]
        ia-mine [-h | --version | --configure]
 
@@ -19,6 +19,7 @@ optional arguments:
   -h, --help            Show this help message and exit.
   -v, --version         Show program's version number and exit.
   --configure           Configure ia-mine to use your Archive.org credentials.
+  -d, --debug           Turn on verbose logging [default: False]
   -a, --all             Mine all indexed items.
   -s, --search QUERY    Mine search results. For help formatting your query,
                         see: https://archive.org/advancedsearch.php
@@ -26,7 +27,6 @@ optional arguments:
                         [default: False]
   -i, --info            Print search result response header to stdout and exit.
   -f, --field FIELD     Fields to include in search results.
-  --sort ORDER          Sort search results.
   -i, --itemlist        Print identifiers only to stdout. [default: False]
   -n, --num-found       Print the number of items found for the given search
                         query.
@@ -59,7 +59,7 @@ from schema import Schema, Use, Or, SchemaError
 
 from .api import mine_items, search, configure
 from . import __version__
-from .exceptions import AuthenticationException
+from .exceptions import AuthenticationError
 
 
 def print_itemlist(resp):
@@ -86,7 +86,6 @@ def main(argv=None):
     schema = Schema({object: bool,
         '--search': Or(None, Use(str)),
         '--field': list,
-        '--sort': list,
         '--rows': Use(int,
             error='"{}" should be an integer'.format(args['--rows'])),
         '--hosts': Or(None, Use(parse_hosts,
@@ -108,7 +107,7 @@ def main(argv=None):
             'Enter your Archive.org credentials below to configure ia-mine.\n\n')
         try:
             configure(overwrite=True)
-        except AuthenticationException as exc:
+        except AuthenticationError as exc:
             sys.stdout.write('\n')
             sys.stderr.write('error: {}\n'.format(str(exc)))
             sys.exit(1)
@@ -124,8 +123,6 @@ def main(argv=None):
         }
         for i, f in enumerate(args['--field']):
             params['fl[{}]'.format(i)] = f
-        for i, f in enumerate(args['--sort']):
-            params['sort[{}]'.format(i)] = f
         r = search(query,
                 params=params,
                 callback=callback,
@@ -134,7 +131,8 @@ def main(argv=None):
                 max_tasks=args['--workers'],
                 retries=args['--retries'],
                 secure=args['--secure'],
-                hosts=args['--hosts'])
+                hosts=args['--hosts'],
+                debug=args['--debug'])
         if args['--info']:
             sys.stdout.write('{}\n'.format(json.dumps(r)))
         elif args['--num-found']:
@@ -152,7 +150,8 @@ def main(argv=None):
                    max_tasks=args['--workers'],
                    retries=args['--retries'],
                    secure=args['--secure'],
-                   hosts=args['--hosts'])
+                   hosts=args['--hosts'],
+                   debug=args['--debug'])
 
 
 if __name__ == '__main__':
