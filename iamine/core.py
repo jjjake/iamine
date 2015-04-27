@@ -167,11 +167,6 @@ class SearchMiner(ItemMiner):
             params['fl[{}]'.format(i)] = 'identifier'
 
         search_params = self.get_search_params(query, params)
-        # If returning entire index and sort parameter is not set,
-        # sort by most downloaded.
-        if search_params['q'] == "(*:*)" and not any('sort' in k for k in search_params):
-            search_params['sort[]'] = 'downloads desc'
-
         url = make_url('/advancedsearch.php', self.protocol, self.hosts)
 
         search_info = yield from self.get_search_info(search_params)
