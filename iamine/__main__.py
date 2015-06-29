@@ -46,9 +46,10 @@ optional arguments:
   -H, --hosts HOSTS     A file containing a list of hosts to shuffle through.
 
 """
-from .utils import suppress_interrupt_messages, suppress_brokenpipe_messages
+from .utils import suppress_interrupt_messages, suppress_brokenpipe_messages, handle_cli_exceptions
 suppress_interrupt_messages()
 suppress_brokenpipe_messages()
+handle_cli_exceptions()
 
 import os
 import sys
