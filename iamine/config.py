@@ -5,7 +5,7 @@ import asyncio
 
 import aiohttp
 
-from .exceptions import AuthenticationException
+from .exceptions import AuthenticationError
 
 
 @asyncio.coroutine
@@ -29,11 +29,12 @@ def _get_auth_config(username, password):
             data=data,
             headers={'Cookie': 'test-cookie=1'},
             connector=conn)
+    r.close()
 
     # Archive.org returns 200 for failed authentication,
     # detect auth failure by some other means.
     if 'logged-in-user' not in conn.cookies:
-        raise AuthenticationException(
+        raise AuthenticationError(
             'Failed to authenticate. Please check your credentials and try again.')
 
     # Get S3 keys using the cookies attached to the connector
@@ -42,6 +43,7 @@ def _get_auth_config(username, password):
             url='https://archive.org/account/s3.php',
             params=dict(output_json=1),
             connector=conn)
+    r.close()
     j = json.loads((yield from r.read()).decode('utf-8'))
 
     auth_config = {
@@ -54,6 +56,7 @@ def _get_auth_config(username, password):
             'logged-in-sig': conn.cookies.get('logged-in-sig').value,
         }
     }
+    conn.close()
     return auth_config
 
 

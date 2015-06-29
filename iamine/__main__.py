@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Concurrently retrieve metadata from Archive.org items.
 
-usage: ia-mine (<itemlist> | -) [--workers WORKERS] [--cache]
+usage: ia-mine (<itemlist> | -) [--debug] [--workers WORKERS] [--cache]
                [--retries RETRIES] [--secure] [--hosts HOSTS]
        ia-mine [--all | --search QUERY] [[--info | --info --field FIELD...]
                |--num-found | --mine-ids | --field FIELD... | --itemlist]
-               [--rows ROWS] [--workers WORKERS] [--cache]
+               [--debug] [--rows ROWS] [--workers WORKERS] [--cache]
                [--retries RETRIES] [--secure] [--hosts HOSTS]
        ia-mine [-h | --version | --configure]
 
@@ -19,6 +19,7 @@ optional arguments:
   -h, --help            Show this help message and exit.
   -v, --version         Show program's version number and exit.
   --configure           Configure ia-mine to use your Archive.org credentials.
+  -d, --debug           Turn on verbose logging [default: False]
   -a, --all             Mine all indexed items.
   -s, --search QUERY    Mine search results. For help formatting your query,
                         see: https://archive.org/advancedsearch.php
@@ -45,9 +46,10 @@ optional arguments:
   -H, --hosts HOSTS     A file containing a list of hosts to shuffle through.
 
 """
-from .utils import suppress_interrupt_messages, suppress_brokenpipe_messages
+from .utils import suppress_interrupt_messages, suppress_brokenpipe_messages, handle_cli_exceptions
 suppress_interrupt_messages()
 suppress_brokenpipe_messages()
+handle_cli_exceptions()
 
 import os
 import sys
@@ -58,7 +60,7 @@ from schema import Schema, Use, Or, SchemaError
 
 from .api import mine_items, search, configure
 from . import __version__
-from .exceptions import AuthenticationException
+from .exceptions import AuthenticationError
 
 
 def print_itemlist(resp):
@@ -106,7 +108,7 @@ def main(argv=None):
             'Enter your Archive.org credentials below to configure ia-mine.\n\n')
         try:
             configure(overwrite=True)
-        except AuthenticationException as exc:
+        except AuthenticationError as exc:
             sys.stdout.write('\n')
             sys.stderr.write('error: {}\n'.format(str(exc)))
             sys.exit(1)
@@ -114,7 +116,7 @@ def main(argv=None):
 
     # Search.
     if args['--search'] or args['--all']:
-        query = '(*:*)' if not args['--search'] else args['--search']
+        query = 'all:1' if not args['--search'] else args['--search']
         callback = print_itemlist if args['--itemlist'] else None
         info_only = True if args['--info'] or args['--num-found'] else False
         params = {
@@ -130,7 +132,8 @@ def main(argv=None):
                 max_tasks=args['--workers'],
                 retries=args['--retries'],
                 secure=args['--secure'],
-                hosts=args['--hosts'])
+                hosts=args['--hosts'],
+                debug=args['--debug'])
         if args['--info']:
             sys.stdout.write('{}\n'.format(json.dumps(r)))
         elif args['--num-found']:
@@ -148,7 +151,8 @@ def main(argv=None):
                    max_tasks=args['--workers'],
                    retries=args['--retries'],
                    secure=args['--secure'],
-                   hosts=args['--hosts'])
+                   hosts=args['--hosts'],
+                   debug=args['--debug'])
 
 
 if __name__ == '__main__':
