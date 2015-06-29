@@ -227,7 +227,7 @@ class SearchMiner(ItemMiner):
     def get_search_params(self, query, params):
         default_rows = 1000
         search_params = {
-            'q': '(*:*)',
+            'q': 'all:1',
             'page': 1,
             'output': 'json',
         }

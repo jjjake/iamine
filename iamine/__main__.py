@@ -116,7 +116,7 @@ def main(argv=None):
 
     # Search.
     if args['--search'] or args['--all']:
-        query = '(*:*)' if not args['--search'] else args['--search']
+        query = 'all:1' if not args['--search'] else args['--search']
         callback = print_itemlist if args['--itemlist'] else None
         info_only = True if args['--info'] or args['--num-found'] else False
         params = {
