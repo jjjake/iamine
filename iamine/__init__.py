@@ -9,7 +9,7 @@ Internet Archive data mining tools.
 
 """
 __title__ = 'iamine'
-__version__ = '0.3.0dev1'
+__version__ = '0.3.0'
 __author__ = 'Jacob M. Johnson'
 __license__ = 'AGPL 3'
 __copyright__ = 'Copyright 2015 Internet Archive'
