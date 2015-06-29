@@ -9,27 +9,41 @@ import time
 
 import aiohttp
 
-from .config import get_config
+from .config import get_config, write_config_file, get_auth_config
 from .requests import MineRequest
 from .urls import metadata_urls, make_url
+from .exceptions import AuthenticationError
 
 
 class Miner(object):
 
-    def __init__(self, loop=None, max_tasks=None, retries=None, secure=None, hosts=None,
-                 params=None, config=None, debug=None):
+    def __init__(self,
+                 loop=None,
+                 max_tasks=None,
+                 retries=None,
+                 secure=None,
+                 hosts=None,
+                 params=None,
+                 config=None,
+                 access=None,
+                 secret=None,
+                 debug=None):
+
         # Set default values for kwargs.
         loop = asyncio.get_event_loop() if not loop else loop
         max_tasks = 100 if not max_tasks else max_tasks
         max_retries = 10 if not retries else retries
         protocol = 'http://' if not secure else 'https://'
         config = get_config(config)
+        access = config.get('s3', {}).get('access', access)
+        secret = config.get('s3', {}).get('secret', secret)
         debug = True if debug else False
 
         self.max_retries = max_retries
         self.protocol = protocol
         self.hosts = hosts
         self.config = config
+        self.access = access
         self.debug = debug
 
         self.cookies = config.get('cookies', {})
@@ -41,10 +55,22 @@ class Miner(object):
         self.loop = loop
         self.sem = asyncio.Semaphore(max_tasks)
 
+        # Require access key!
+        self.assert_s3_keys_valid(access, secret)
+
         # Rate limiting.
         self._max_per_second = self.get_global_rate_limit()
         self._min_interval = 1.0 / float(self._max_per_second)
         self._last_time_called = 0.0
+
+    def assert_s3_keys_valid(self, access, secret):
+        url = '{}s3.us.archive.org?check_auth=1'.format(self.protocol)
+        r = urllib.request.Request(url)
+        r.add_header('Authorization', 'LOW {0}:{1}'.format(access, secret))
+        f = urllib.request.urlopen(r)
+        j = json.loads(f.read().decode('utf-8'))
+        if j.get('authorized') is not True:
+            raise AuthenticationError(j.get('error'))
 
     def get_global_rate_limit(self):
         """Get the global rate limit per client.
@@ -52,6 +78,7 @@ class Miner(object):
         :rtype: int
         :returns: The global rate limit for each client.
         """
+        #return 1000
         r = urllib.request.urlopen('https://archive.org/metadata/iamine-rate-limiter')
         j = json.loads(r.read().decode('utf-8'))
         return int(j.get('metadata', {}).get('rate_per_second', 300))
@@ -60,7 +87,7 @@ class Miner(object):
     def mine_urls(self, urls, params=None, callback=None):
         def _md_request_generator():
             for url in urls:
-                resp = MineRequest('GET', url,
+                resp = MineRequest('GET', url, self.access,
                            callback=callback,
                            max_retries=self.max_retries,
                            debug=self.debug,
@@ -179,7 +206,7 @@ class SearchMiner(ItemMiner):
             params['page'] = page
             if not callback and mine_ids:
                 callback = self._handle_search_results
-            request = MineRequest('GET', url,
+            request = MineRequest('GET', url, self.access,
                           callback=callback,
                           max_retries=self.max_retries,
                           params=params
