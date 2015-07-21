@@ -49,7 +49,7 @@ def search(query=None, params=None, callback=None, mine_ids=None, info_only=None
         return search_info
 
     try:
-        miner.loop.add_signal_handler(signal.SIGINT, miner.loop.stop)
+        miner.loop.add_signal_handler(signal.SIGINT, miner.close)
         miner.loop.run_until_complete(
                 miner.search(query, params=params, callback=callback, mine_ids=mine_ids))
     except RuntimeError:
@@ -73,7 +73,7 @@ def mine_urls(urls, params=None, callback=None, **kwargs):
     """
     miner = Miner(**kwargs)
     try:
-        miner.loop.add_signal_handler(signal.SIGINT, miner.loop.stop)
+        miner.loop.add_signal_handler(signal.SIGINT, miner.close)
         miner.loop.run_until_complete(miner.mine_urls(urls, params, callback))
     except RuntimeError:
         pass
@@ -96,7 +96,7 @@ def mine_items(identifiers, params=None, callback=None, **kwargs):
     """
     miner = ItemMiner(**kwargs)
     try:
-        miner.loop.add_signal_handler(signal.SIGINT, miner.loop.stop)
+        miner.loop.add_signal_handler(signal.SIGINT, miner.close)
         miner.loop.run_until_complete(miner.mine_items(identifiers, params, callback))
     except RuntimeError:
         pass

@@ -1,16 +1,13 @@
 import os
 import locale
 import sys
-import urllib.parse
 import asyncio
 import json
 import traceback
 
 import aiohttp
 
-from .config import get_config, write_config_file
 from . import __version__
-from .exceptions import AuthenticationError
 
 
 class MineRequest(object):
@@ -26,7 +23,7 @@ class MineRequest(object):
         self.method = method
         self.url = url
         self.callback = callback
-        self.retries = max_retries
+        self.max_retries = max_retries
         self.debug = debug
         self.request_kwargs = kwargs
         self.access_key = access_key
@@ -61,29 +58,27 @@ class MineRequest(object):
 
     @asyncio.coroutine
     def make_request(self):
-        while True:
-            self.retries -= 1
+        retries = 0
+        while retries < self.max_retries:
             try:
                 resp = yield from aiohttp.request(self.method, self.url,
                                                   **self.request_kwargs)
                 return (yield from self._handle_response(resp))
             except Exception as exc:
+                retries += 1
                 error = dict(
                     url=self.url,
                     params=self.request_kwargs.get('params'),
                     message='Request failed, retrying.',
-                    retries_left=self.retries,
+                    retries_left=self.max_retries-retries,
                 )
-
                 if self.debug:
                     error['callback'] = repr(self.callback)
                     error['exception'] = repr(exc)
                     error['traceback'] = traceback.format_exc()
                     sys.stderr.write('{}\n'.format(json.dumps(error)))
-
-                if self.retries <= 0:
-                    error['message'] = 'Maximum retries exceeded for url, giving up.'
-                    sys.stderr.write('{}\n'.format(json.dumps(error)))
-                    return
-
-                yield from asyncio.sleep(1)
+            yield from asyncio.sleep(1)
+        else:
+            error['message'] = 'Maximum retries exceeded for url, giving up.'
+            sys.stderr.write('{}\n'.format(json.dumps(error)))
+            return

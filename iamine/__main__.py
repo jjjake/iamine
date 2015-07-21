@@ -51,6 +51,7 @@ suppress_interrupt_messages()
 suppress_brokenpipe_messages()
 handle_cli_exceptions()
 
+import logging
 import os
 import sys
 import json
@@ -61,6 +62,10 @@ from schema import Schema, Use, Or, SchemaError
 from .api import mine_items, search, configure
 from . import __version__
 from .exceptions import AuthenticationError
+
+
+asyncio_logger = logging.getLogger('asyncio')
+asyncio_logger.setLevel(logging.CRITICAL)
 
 
 def print_itemlist(resp):

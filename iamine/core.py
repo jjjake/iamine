@@ -9,7 +9,7 @@ import time
 
 import aiohttp
 
-from .config import get_config, write_config_file, get_auth_config
+from .config import get_config
 from .requests import MineRequest
 from .urls import metadata_urls, make_url
 from .exceptions import AuthenticationError
@@ -39,29 +39,33 @@ class Miner(object):
         secret = config.get('s3', {}).get('secret', secret)
         debug = True if debug else False
 
+        self.max_tasks = max_tasks
         self.max_retries = max_retries
         self.protocol = protocol
         self.hosts = hosts
         self.config = config
         self.access = access
         self.debug = debug
-
         self.cookies = config.get('cookies', {})
-        self.connector = aiohttp.TCPConnector(share_cookies=True, loop=loop)
-        self.connector.update_cookies(self.cookies)
 
         # Asyncio/Aiohttp settings.
-        self.tasks = set()
+        self.connector = aiohttp.TCPConnector(share_cookies=True, loop=loop)
+        self.connector.update_cookies(self.cookies)
         self.loop = loop
-        self.sem = asyncio.Semaphore(max_tasks)
+        self.q = asyncio.JoinableQueue(1000, loop=self.loop)
 
-        # Require access key!
+        # Require valid access key!
         self.assert_s3_keys_valid(access, secret)
 
         # Rate limiting.
         self._max_per_second = self.get_global_rate_limit()
         self._min_interval = 1.0 / float(self._max_per_second)
         self._last_time_called = 0.0
+
+    def close(self):
+        self.connector.close()
+        self.loop.stop()
+        self.loop.close()
 
     def assert_s3_keys_valid(self, access, secret):
         url = '{}s3.us.archive.org?check_auth=1'.format(self.protocol)
@@ -78,40 +82,9 @@ class Miner(object):
         :rtype: int
         :returns: The global rate limit for each client.
         """
-        #return 1000
         r = urllib.request.urlopen('https://archive.org/metadata/iamine-rate-limiter')
         j = json.loads(r.read().decode('utf-8'))
         return int(j.get('metadata', {}).get('rate_per_second', 300))
-
-    @asyncio.coroutine
-    def mine_urls(self, urls, params=None, callback=None):
-        def _md_request_generator():
-            for url in urls:
-                resp = MineRequest('GET', url, self.access,
-                           callback=callback,
-                           max_retries=self.max_retries,
-                           debug=self.debug,
-                           params=params,
-                           connector=self.connector
-                       )
-                yield resp
-
-        task = asyncio.Task(self.add_requests(_md_request_generator()))
-        task.add_done_callback(self.tasks.remove)
-        self.tasks.add(task)
-
-        # Sleep until all tasks are complete.
-        while self.tasks:
-            yield from asyncio.sleep(.1)
-
-    @asyncio.coroutine
-    def add_requests(self, requests):
-        for request in requests:
-            yield from self.sem.acquire()
-            task = asyncio.Task(self.make_rate_limited_request(request))
-            task.add_done_callback(lambda t: self.sem.release())
-            task.add_done_callback(self.tasks.remove)
-            self.tasks.add(task)
 
     def _rate_limited():
         """A rate limit decorator for limiting the number of times the
@@ -133,6 +106,31 @@ class Miner(object):
     @_rate_limited()
     def make_rate_limited_request(self, request):
         yield from request.make_request()
+
+    @asyncio.coroutine
+    def work(self):
+        while True:
+            request = yield from self.q.get()
+            yield from self.make_rate_limited_request(request)
+            self.q.task_done()
+
+    @asyncio.coroutine
+    def q_requests(self, requests):
+        for req in requests:
+            self.q.put_nowait(req)
+
+    @asyncio.coroutine
+    def mine(self, requests):
+        workers = [asyncio.Task(self.work(), loop=self.loop)
+                   for _ in range(self.max_tasks)]
+        asyncio.Task(self.q_requests(requests))
+
+        yield from self.q.join()
+        # Wait a bit for all connections to close.
+        yield from asyncio.sleep(1)
+
+        for w in workers:
+            w.cancel()
 
 
 class ItemMiner(Miner):
@@ -157,72 +155,16 @@ class ItemMiner(Miner):
         """
         # By default, don't cache item metadata in redis.
         params = {'dontcache': 1} if not params else {}
-        urls = metadata_urls(identifiers, self.protocol, self.hosts)
-        yield from self.mine_urls(urls, params, callback)
+        requests = metadata_requests(identifiers, params, callback, self)
+        yield from self.mine(requests)
 
 
 class SearchMiner(ItemMiner):
 
     def __init__(self, **kwargs):
         super(SearchMiner, self).__init__(**kwargs)
-
-    @asyncio.coroutine
-    def search(self, query=None, params=None, callback=None, mine_ids=None):
-        """Mine Archive.org search results.
-
-        :param query: The Archive.org search query to yield results for.
-                      Refer to https://archive.org/advancedsearch.php#raw
-                      for help formatting your query.
-        :type query: str
-
-        :param params: The URL parameters to send with each request sent
-                       to the Archive.org Advancedsearch Api.
-        :type params: dict
-        """
-        # When mining id's, the only field we need returned is "identifier".
-        if mine_ids and params:
-            params = dict((k, v) for k, v in params.items() if 'fl' not in k)
-            params['fl[]'] = 'identifier'
-
-        # Make sure "identifier" is always returned in search results.
-        fields = [k for k in params if 'fl' in k]
-        if (len(fields) == 1) and (not any('identifier' == params[k] for k in params)):
-            # Make sure to not overwrite the existing fl[] key.
-            i = 0
-            while params.get('fl[{}]'.format(i)):
-                i += 1
-            params['fl[{}]'.format(i)] = 'identifier'
-
-        search_params = self.get_search_params(query, params)
-        url = make_url('/advancedsearch.php', self.protocol, self.hosts)
-
-        search_info = yield from self.get_search_info(search_params)
-        total_results = search_info.get('response', {}).get('numFound', 0)
-        total_pages = (int(total_results/search_params['rows']) + 1)
-
-        requests = []
-        for page in range(1, (total_pages + 2)):
-            params = deepcopy(search_params)
-            params['page'] = page
-            if not callback and mine_ids:
-                callback = self._handle_search_results
-            request = MineRequest('GET', url, self.access,
-                          callback=callback,
-                          max_retries=self.max_retries,
-                          params=params
-                      )
-            requests.append(request)
-            # Submit 5 tasks at a time.
-            if (page % 5 == 0) or (page == total_pages):
-                task = asyncio.Task(self.add_requests(requests))
-                task.add_done_callback(self.tasks.remove)
-                self.tasks.add(task)
-                yield from asyncio.sleep(.01)
-                requests = []
-
-        # Sleep until all tasks are complete.
-        while self.tasks:
-            yield from asyncio.sleep(.1)
+        # Item mining queue.
+        self.iq = asyncio.JoinableQueue(1000, loop=self.loop)
 
     def get_search_params(self, query, params):
         default_rows = 500
@@ -243,13 +185,14 @@ class SearchMiner(ItemMiner):
         url = make_url('/advancedsearch.php?', self.protocol, self.hosts)
         p = deepcopy(params)
         p['rows'] = 0
-        resp = yield from aiohttp.request('get', url, params=p)
-        resp.close()
-        j = yield from resp.json(encoding='utf-8')
-        return {} if not j else j
+
+        params = urllib.parse.urlencode(p)
+        url += params
+        f = urllib.request.urlopen(url)
+        return json.loads(f.read().decode('utf-8'))
 
     @asyncio.coroutine
-    def _handle_search_results(self, resp, mine_ids=None, params=None, callback=None):
+    def _handle_search_results(self, resp, params=None, callback=None):
         j = yield from resp.json(encoding='utf-8')
         resp.close()
         identifiers = []
@@ -257,6 +200,89 @@ class SearchMiner(ItemMiner):
             if not doc.get('identifier'):
                 continue
             identifiers.append(doc['identifier'])
-        task = asyncio.Task(self.mine_items(identifiers, params, callback))
-        task.add_done_callback(self.tasks.remove)
-        self.tasks.add(task)
+        for req in metadata_requests(identifiers, params, callback, self):
+            self.iq.put_nowait(req)
+
+    def search_requests(self, query=None, params=None, callback=None, mine_ids=None):
+        """Mine Archive.org search results.
+
+        :param query: The Archive.org search query to yield results for.
+                      Refer to https://archive.org/advancedsearch.php#raw
+                      for help formatting your query.
+        :type query: str
+
+        :param params: The URL parameters to send with each request sent
+                       to the Archive.org Advancedsearch Api.
+        :type params: dict
+        """
+        # If mining ids, devote half the workers to search and half to item mining.
+        if mine_ids:
+            self.max_tasks = self.max_tasks/2
+        # When mining id's, the only field we need returned is "identifier".
+        if mine_ids and params:
+            params = dict((k, v) for k, v in params.items() if 'fl' not in k)
+            params['fl[]'] = 'identifier'
+
+        # Make sure "identifier" is always returned in search results.
+        fields = [k for k in params if 'fl' in k]
+        if (len(fields) == 1) and (not any('identifier' == params[k] for k in params)):
+            # Make sure to not overwrite the existing fl[] key.
+            i = 0
+            while params.get('fl[{}]'.format(i)):
+                i += 1
+            params['fl[{}]'.format(i)] = 'identifier'
+
+        search_params = self.get_search_params(query, params)
+        url = make_url('/advancedsearch.php', self.protocol, self.hosts)
+
+        search_info = self.get_search_info(search_params)
+        total_results = search_info.get('response', {}).get('numFound', 0)
+        total_pages = (int(total_results/search_params['rows']) + 1)
+
+        for page in range(1, (total_pages + 1)):
+            params = deepcopy(search_params)
+            params['page'] = page
+            if not callback and mine_ids:
+                callback = self._handle_search_results
+            req = MineRequest('GET', url, self.access,
+                              callback=callback,
+                              max_retries=self.max_retries,
+                              debug=self.debug,
+                              params=params,
+                              connector=self.connector)
+            yield req
+
+    @asyncio.coroutine
+    def mine_items(self):
+        while True:
+            request = yield from self.iq.get()
+            yield from self.make_rate_limited_request(request)
+            self.iq.task_done()
+
+    @asyncio.coroutine
+    def search(self, query=None, params=None, callback=None, mine_ids=None):
+        search_requests = self.search_requests(query, params, callback, mine_ids)
+        workers = [asyncio.Task(self.mine_items(), loop=self.loop)
+                   for _ in range(self.max_tasks)]
+
+        yield from self.mine(search_requests)
+        # Wait a bit for all connections to close.
+        yield from asyncio.sleep(1)
+
+        for w in workers:
+            w.cancel()
+
+
+# metadata_requests() ____________________________________________________________________
+def metadata_requests(identifiers, params=None, callback=None, miner=None):
+    protocol = None if not miner else miner.protocol
+    hosts = None if not miner else miner.hosts
+    urls = metadata_urls(identifiers, protocol, hosts)
+
+    for url in urls:
+        yield MineRequest('GET', url, miner.access,
+                          callback=callback,
+                          max_retries=miner.max_retries,
+                          debug=miner.debug,
+                          params=params,
+                          connector=miner.connector)
