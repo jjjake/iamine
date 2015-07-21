@@ -11,8 +11,6 @@ What Is IA Mine?
 IA Mine is a command line tool and Python 3 library for data mining
 the Internet Archive.
 
-**Note: Documentation currently in progress.**
-
 
 How Do I Get Started?
 =====================
@@ -34,7 +32,57 @@ simply download one of the latest binaries from
     $ chmod +x ia-mine
     $ ./ia-mine -v
     0.2.2
-    
+
+Usage:
+
+.. code:: bash
+    $ ia-mine --help
+    Concurrently retrieve metadata from Archive.org items.
+
+    usage: ia-mine (<itemlist> | -) [--debug] [--workers WORKERS] [--cache]
+                   [--retries RETRIES] [--secure] [--hosts HOSTS]
+           ia-mine [--all | --search QUERY] [[--info | --info --field FIELD...]
+                   |--num-found | --mine-ids | --field FIELD... | --itemlist]
+                   [--debug] [--rows ROWS] [--workers WORKERS] [--cache]
+                   [--retries RETRIES] [--secure] [--hosts HOSTS]
+           ia-mine [-h | --version | --configure]
+
+    positional arguments:
+      itemlist              A file containing Archive.org identifiers, one per
+                            line, for which to retrieve metadata from. If no
+                            itemlist is provided, identifiers will be read from
+                            stdin.
+
+    optional arguments:
+      -h, --help            Show this help message and exit.
+      -v, --version         Show program's version number and exit.
+      --configure           Configure ia-mine to use your Archive.org credentials.
+      -d, --debug           Turn on verbose logging [default: False]
+      -a, --all             Mine all indexed items.
+      -s, --search QUERY    Mine search results. For help formatting your query,
+                            see: https://archive.org/advancedsearch.php
+      -m, --mine-ids        Mine items returned from search results.
+                            [default: False]
+      -i, --info            Print search result response header to stdout and exit.
+      -f, --field FIELD     Fields to include in search results.
+      -i, --itemlist        Print identifiers only to stdout. [default: False]
+      -n, --num-found       Print the number of items found for the given search
+                            query.
+      --rows ROWS           The number of rows to return for each request made to
+                            the Archive.org Advancedsearch API. On slower networks,
+                            it may be useful to use a lower value, and on faster
+                            networks, a higher value. [default: 50]
+      -w, --workers WORKERS
+                            The maximum number of tasks to run at once.
+                            [default: 100]
+      -c, --cache           Cache item metadata on Archive.org. Items are not
+                            cached are not cached by default.
+      -r, --retries RETRIES
+                            The maximum number of retries for each item.
+                            [default: 10]
+      --secure              Use HTTPS. HTTP is used by default.
+      -H, --hosts HOSTS     A file containing a list of hosts to shuffle through.
+
 
 Python Library
 --------------
