@@ -1,5 +1,5 @@
 aiohttp==0.13.1
-asyncio==3.4.1
+asyncio==3.4.3
 schema==0.3.1
-docopt==0.6.1
+docopt==0.6.2
 iamine
