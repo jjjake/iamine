@@ -43,7 +43,7 @@ def search(query=None, params=None, callback=None, mine_ids=None, info_only=None
 
     if info_only:
         params = miner.get_search_params(query, params)
-        r = miner.loop.run_until_complete(miner.get_search_info(params))
+        r = miner.get_search_info(params)
         search_info = r.get('responseHeader')
         search_info['numFound'] = r.get('response', {}).get('numFound', 0)
         return search_info
