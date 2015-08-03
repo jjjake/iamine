@@ -15,7 +15,7 @@ wheels:
 	pip3 wheel -r requirements.txt
 
 binaries: clean-pex wheels
-	pex -vvv  --no-pypi --repo=wheelhouse/ --python-shebang='/usr/bin/env python3' -r requirements.txt -e iamine.__main__:main -o ia-mine-$(VERSION)-py3.pex
+	pex -vvv --disable-cache --no-pypi --repo=wheelhouse/ --python-shebang='/usr/bin/env python3' -r requirements.txt -e iamine.__main__:main -o ia-mine-$(VERSION)-py3.pex
 
 publish-binaries:
 	wget -nc https://archive.org/download/ia-pex/ia-0.7.9-python2.7.pex
