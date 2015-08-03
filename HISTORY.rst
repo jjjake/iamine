@@ -1,0 +1,18 @@
+.. :changelog:
+
+Release History
+---------------
+
+0.3.2 (2015-08-03)
+++++++++++++++++++
+
+**Bugfixes**
+
+-  ``asyncio.JoinableQueue`` was deprecated in Python 3.4.4.
+   ``iamine.core.Miner`` now uses ``asyncio.Queue`` for Python 3.4.4 and
+   newer and ``asyncio.JoinableQueue`` for older versions
+   (``asyncio.Queue`` cannot be used for all versions because
+   ``asyncio.Queue.join()`` was only added in version 3.4.4.).
+-  ``SearchMiner.get_search_info()`` is no longer a coroutine (now uses
+   ``urllib``). Fixed bug in ``iamine.api.search`` where it was still
+   being called as coroutine.
