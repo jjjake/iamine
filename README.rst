@@ -35,7 +35,7 @@ simply download one of the latest binaries from
 
 Usage:
 
-.. code:: bash
+.. code::
 
     $ ia-mine --help
     Concurrently retrieve metadata from Archive.org items.
