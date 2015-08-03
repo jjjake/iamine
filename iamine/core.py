@@ -4,6 +4,10 @@ try:
 except ImportError:
     import json
 import asyncio
+try:
+    from asyncio import JoinableQueue as Queue
+except ImportError:
+    from asyncio import Queue
 from copy import deepcopy
 import time
 
@@ -52,7 +56,8 @@ class Miner(object):
         self.connector = aiohttp.TCPConnector(share_cookies=True, loop=loop)
         self.connector.update_cookies(self.cookies)
         self.loop = loop
-        self.q = asyncio.JoinableQueue(1000, loop=self.loop)
+        self.q = Queue(1000, loop=self.loop)
+        self.q = Queue(loop=self.loop)
 
         # Require valid access key!
         self.assert_s3_keys_valid(access, secret)
@@ -126,8 +131,9 @@ class Miner(object):
         asyncio.Task(self.q_requests(requests))
 
         yield from self.q.join()
-        # Wait a bit for all connections to close.
         yield from asyncio.sleep(1)
+        while not self.q.empty():
+            yield from asyncio.sleep(1)
 
         for w in workers:
             w.cancel()
@@ -164,7 +170,7 @@ class SearchMiner(ItemMiner):
     def __init__(self, **kwargs):
         super(SearchMiner, self).__init__(**kwargs)
         # Item mining queue.
-        self.iq = asyncio.JoinableQueue(1000, loop=self.loop)
+        self.iq = Queue(1000, loop=self.loop)
 
     def get_search_params(self, query, params):
         default_rows = 500
@@ -262,15 +268,17 @@ class SearchMiner(ItemMiner):
     @asyncio.coroutine
     def search(self, query=None, params=None, callback=None, mine_ids=None):
         search_requests = self.search_requests(query, params, callback, mine_ids)
-        workers = [asyncio.Task(self.mine_items(), loop=self.loop)
-                   for _ in range(self.max_tasks)]
+        if mine_ids:
+            workers = [asyncio.Task(self.mine_items(), loop=self.loop)
+                       for _ in range(self.max_tasks)]
 
         yield from self.mine(search_requests)
         # Wait a bit for all connections to close.
         yield from asyncio.sleep(1)
 
-        for w in workers:
-            w.cancel()
+        if mine_ids:
+            for w in workers:
+                w.cancel()
 
 
 # metadata_requests() ____________________________________________________________________
