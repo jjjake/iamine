@@ -3,6 +3,13 @@
 Release History
 ---------------
 
+0.3.3 (2015-08-04)
+++++++++++++++++++
+
+**Bugfixes**
+
+-  Added HISTORY.rst to MANIFEST.in to fix `pip install iamine`.
+
 0.3.2 (2015-08-03)
 ++++++++++++++++++
 
