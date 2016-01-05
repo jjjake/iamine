@@ -66,7 +66,7 @@ def get_auth_config(username, password):
 
 
 def get_config_file():
-    config = configparser.ConfigParser()
+    config = configparser.RawConfigParser()
 
     config_dir = os.path.expanduser('~/.config/')
     if not os.path.isdir(config_dir):
