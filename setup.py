@@ -19,13 +19,13 @@ if sys.version_info <= (3,):
     sys.exit(1)
 
 install_requires = [
-    'aiohttp==0.16.6',
-    'schema==0.3.1',
-    'docopt==0.6.2',
+    'aiohttp>=0.13.1,<0.21.0',
+    'schema>=0.4.0,<0.6.0',
+    'docopt>=0.6.0,<0.7.0',
 ]
 
 if sys.version_info <= (3,4):
-    install_requires.append('asyncio==3.4.3')
+    install_requires.append('asyncio')
 
 setup(
     name = 'iamine',

@@ -74,7 +74,7 @@ def print_itemlist(resp):
         print(doc.get('identifier'))
 
 
-def main(argv=None):
+def main(argv=None, session=None):
     # If ia-wrapper calls main with argv argument, strip the
     # "mine" subcommand from args.
     argv = argv[1:] if argv else sys.argv[1:]
