@@ -65,21 +65,22 @@ def get_auth_config(username, password):
     return loop.run_until_complete(_get_auth_config(username, password))
 
 
-def get_config_file():
+def get_config_file(config_file=None):
     config = configparser.RawConfigParser()
 
-    config_dir = os.path.expanduser('~/.config/')
-    if not os.path.isdir(config_dir):
-        config_file = os.path.expanduser('~/.ia')
-    else:
-        config_file = '{0}/ia.ini'.format(config_dir)
+    if not config_file:
+        config_dir = os.path.expanduser('~/.config/')
+        if not os.path.isdir(config_dir):
+            config_file = os.path.expanduser('~/.ia')
+        else:
+            config_file = '{0}/ia.ini'.format(config_dir)
     config.read(config_file)
 
     return (config_file, config)
 
 
-def write_config_file(username, password, overwrite=None):
-    config_file, config = get_config_file()
+def write_config_file(username, password, overwrite=None, config_file=None):
+    config_file, config = get_config_file(config_file)
     auth_config = get_auth_config(username, password)
 
     # S3 Keys.
@@ -95,7 +96,6 @@ def write_config_file(username, password, overwrite=None):
 
     # Cookies.
     cookies = auth_config.get('cookies', {})
-    cookies = dict((k, v.replace('%', '%%')) for k, v in cookies.items())
     if ('cookies' in config) and (not overwrite):
         config_user = config.get('cookies', 'logged-in-user', fallback=None)
         if not config_user:
@@ -111,10 +111,12 @@ def write_config_file(username, password, overwrite=None):
         os.chmod(config_file, 0o700)
         config.write(fh)
 
+    return config_file
 
-def get_config(config=None):
+
+def get_config(config=None, config_file=None):
     _config = {} if not config else config
-    config_file, config = get_config_file()
+    config_file, config = get_config_file(config_file)
     if not os.path.isfile(config_file):
         return _config
 

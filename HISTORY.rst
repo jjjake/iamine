@@ -3,6 +3,14 @@
 Release History
 ---------------
 
+0.3.5 (2016-05-24)
+++++++++++++++++++
+
+**Features and Improvements**
+
+- Fixed ``Exception ignored in:`` errors.
+- Added support for custom config files.
+
 0.3.3 (2015-08-04)
 ++++++++++++++++++
 

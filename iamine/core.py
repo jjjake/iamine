@@ -29,6 +29,7 @@ class Miner(object):
                  hosts=None,
                  params=None,
                  config=None,
+                 config_file=None,
                  access=None,
                  secret=None,
                  debug=None):
@@ -38,7 +39,7 @@ class Miner(object):
         max_tasks = 100 if not max_tasks else max_tasks
         max_retries = 10 if not retries else retries
         protocol = 'http://' if not secure else 'https://'
-        config = get_config(config)
+        config = get_config(config, config_file)
         access = config.get('s3', {}).get('access', access)
         secret = config.get('s3', {}).get('secret', secret)
         debug = True if debug else False
@@ -128,7 +129,7 @@ class Miner(object):
     def mine(self, requests):
         workers = [asyncio.Task(self.work(), loop=self.loop)
                    for _ in range(self.max_tasks)]
-        asyncio.Task(self.q_requests(requests))
+        yield from self.q_requests(requests)
 
         yield from self.q.join()
         yield from asyncio.sleep(1)
@@ -137,6 +138,7 @@ class Miner(object):
 
         for w in workers:
             w.cancel()
+        yield from asyncio.sleep(.5)
 
 
 class ItemMiner(Miner):

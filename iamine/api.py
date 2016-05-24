@@ -96,14 +96,14 @@ def mine_items(identifiers, params=None, callback=None, **kwargs):
     """
     miner = ItemMiner(**kwargs)
     try:
-        miner.loop.add_signal_handler(signal.SIGINT, miner.close)
         miner.loop.run_until_complete(miner.mine_items(identifiers, params, callback))
     except RuntimeError:
-        pass
+        miner.loop.close()
 
 
-def configure(username=None, password=None, overwrite=None):
+def configure(username=None, password=None, overwrite=None, config_file=None):
     """Configure IA Mine with your Archive.org credentials."""
     username = input('Email address: ') if not username else username
     password = getpass('Password: ') if not password else password
-    write_config_file(username, password, overwrite)
+    _config_file = write_config_file(username, password, overwrite, config_file)
+    print('\nConfig saved to: {}'.format(_config_file))

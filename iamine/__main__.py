@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Concurrently retrieve metadata from Archive.org items.
 
-usage: ia-mine (<itemlist> | -) [--debug] [--workers WORKERS] [--cache]
+usage: ia-mine [--config-file=<FILE>] (<itemlist> | -) [--debug] [--workers WORKERS] [--cache]
                [--retries RETRIES] [--secure] [--hosts HOSTS]
        ia-mine [--all | --search QUERY] [[--info | --info --field FIELD...]
                |--num-found | --mine-ids | --field FIELD... | --itemlist]
                [--debug] [--rows ROWS] [--workers WORKERS] [--cache]
                [--retries RETRIES] [--secure] [--hosts HOSTS]
-       ia-mine [-h | --version | --configure]
+       ia-mine [--config-file=<FILE>] [-h | --version | --configure]
 
 positional arguments:
   itemlist              A file containing Archive.org identifiers, one per
@@ -16,34 +16,35 @@ positional arguments:
                         stdin.
 
 optional arguments:
-  -h, --help            Show this help message and exit.
-  -v, --version         Show program's version number and exit.
-  --configure           Configure ia-mine to use your Archive.org credentials.
-  -d, --debug           Turn on verbose logging [default: False]
-  -a, --all             Mine all indexed items.
-  -s, --search QUERY    Mine search results. For help formatting your query,
-                        see: https://archive.org/advancedsearch.php
-  -m, --mine-ids        Mine items returned from search results.
-                        [default: False]
-  -i, --info            Print search result response header to stdout and exit.
-  -f, --field FIELD     Fields to include in search results.
-  -i, --itemlist        Print identifiers only to stdout. [default: False]
-  -n, --num-found       Print the number of items found for the given search
-                        query.
-  --rows ROWS           The number of rows to return for each request made to
-                        the Archive.org Advancedsearch API. On slower networks,
-                        it may be useful to use a lower value, and on faster
-                        networks, a higher value. [default: 50]
+  -h, --help                 Show this help message and exit.
+  -v, --version              Show program's version number and exit.
+  --configure                Configure ia-mine to use your Archive.org credentials.
+  -C, --config-file=<FILE>   The config file to use.
+  -d, --debug                Turn on verbose logging [default: False]
+  -a, --all                  Mine all indexed items.
+  -s, --search QUERY         Mine search results. For help formatting your query,
+                             see: https://archive.org/advancedsearch.php
+  -m, --mine-ids             Mine items returned from search results.
+                             [default: False]
+  -i, --info                 Print search result response header to stdout and exit.
+  -f, --field FIELD          Fields to include in search results.
+  -i, --itemlist             Print identifiers only to stdout. [default: False]
+  -n, --num-found            Print the number of items found for the given search
+                             query.
+  --rows ROWS                The number of rows to return for each request made to
+                             the Archive.org Advancedsearch API. On slower networks,
+                             it may be useful to use a lower value, and on faster
+                             networks, a higher value. [default: 50]
   -w, --workers WORKERS
-                        The maximum number of tasks to run at once.
-                        [default: 100]
-  -c, --cache           Cache item metadata on Archive.org. Items are not
-                        cached are not cached by default.
+                             The maximum number of tasks to run at once.
+                             [default: 100]
+  -c, --cache                Cache item metadata on Archive.org. Items are not
+                             cached are not cached by default.
   -r, --retries RETRIES
-                        The maximum number of retries for each item.
-                        [default: 10]
-  --secure              Use HTTPS. HTTP is used by default.
-  -H, --hosts HOSTS     A file containing a list of hosts to shuffle through.
+                             The maximum number of retries for each item.
+                             [default: 10]
+  --secure                   Use HTTPS. HTTP is used by default.
+  -H, --hosts HOSTS          A file containing a list of hosts to shuffle through.
 
 """
 from .utils import suppress_interrupt_messages, suppress_brokenpipe_messages, handle_cli_exceptions
@@ -92,6 +93,7 @@ def main(argv=None, session=None):
     schema = Schema({object: bool,
         '--search': Or(None, Use(str)),
         '--field': list,
+        '--config-file': Or(None, str),
         '--rows': Use(int,
             error='"{}" should be an integer'.format(args['--rows'])),
         '--hosts': Or(None, Use(parse_hosts,
@@ -105,14 +107,14 @@ def main(argv=None, session=None):
     try:
         args = schema.validate(args)
     except SchemaError as exc:
-        sys.exit(sys.stderr.write('{0}error: {1}\n'.format(__doc__, str(exc))))
+        sys.exit(sys.stderr.write('error: {1}\n{0}'.format(__doc__, str(exc))))
 
     # Configure.
     if args['--configure']:
         sys.stdout.write(
             'Enter your Archive.org credentials below to configure ia-mine.\n\n')
         try:
-            configure(overwrite=True)
+            configure(overwrite=True, config_file=args['--config-file'])
         except AuthenticationError as exc:
             sys.stdout.write('\n')
             sys.stderr.write('error: {}\n'.format(str(exc)))
@@ -136,6 +138,7 @@ def main(argv=None, session=None):
                 info_only=info_only,
                 max_tasks=args['--workers'],
                 retries=args['--retries'],
+                config_file=args['--config-file'],
                 secure=args['--secure'],
                 hosts=args['--hosts'],
                 debug=args['--debug'])
@@ -157,6 +160,7 @@ def main(argv=None, session=None):
                    retries=args['--retries'],
                    secure=args['--secure'],
                    hosts=args['--hosts'],
+                   config_file=args['--config-file'],
                    debug=args['--debug'])
 
 
