@@ -20,7 +20,7 @@ binaries: clean-pex
 publish-binaries:
 	wget -nc https://archive.org/download/ia-pex/ia
 	chmod +x ia
-	./ia upload iamine-pex ia-mine-$(VERSION)-py3-none-any.pex
-	./ia upload iamine-pex ia-mine-$(VERSION)-py3-none-any.pex --remote-name=ia-mine
-	./ia upload iamine-pex ia-mine-$(VERSION)-py3-none-any.pex --remote-name=iamine
+	./ia upload iamine-pex ia-mine-$(VERSION)-py3-none-any.pex --no-derive
+	./ia upload iamine-pex ia-mine-$(VERSION)-py3-none-any.pex --remote-name=ia-mine --no-derive
+	./ia upload iamine-pex ia-mine-$(VERSION)-py3-none-any.pex --remote-name=iamine --no-derive
 	./ia metadata iamine-pex -m description:$(IA_PEX_DESCRIPTION) -m version:$(VERSION)
