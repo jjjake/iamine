@@ -28,10 +28,10 @@ simply download one of the latest binaries from
 .. code:: bash
 
     # Download ia-mine and make it executable.
-    $ curl -L https://archive.org/download/iamine-pex/ia-mine-0.3.2.pex > ia-mine
+    $ curl -LO https://archive.org/download/iamine-pex/ia-mine
     $ chmod +x ia-mine
-    $ ./ia-mine -v
-    0.3.2
+    $ ./ia-mine --help
+    ...
 
 Usage:
 
