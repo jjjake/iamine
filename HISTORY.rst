@@ -6,6 +6,17 @@ Release History
 0.3.5 (2016-05-24)
 ++++++++++++++++++
 
+**Bugfixes**
+
+- All output from ia-mine should be JSONL.
+  Some responses from the Metadata API contain unescaped newlines.
+  This causes a lot of issues when using `jq` are when parsing JSON line-by-line.
+  to address this, JSON responses returned from server are now parsed and dumped back to JSON before printing to stdout.
+
+
+0.3.5 (2016-05-24)
+++++++++++++++++++
+
 **Features and Improvements**
 
 - Fixed ``Exception ignored in:`` errors.
