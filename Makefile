@@ -1,6 +1,6 @@
 VERSION=$(shell grep -m1 version iamine/__init__.py | cut -d\' -f2)
 
-IA_PEX_DESCRIPTION="<p>This item contains binaries of the ia-mine command line tool. \"ia-mine\" is a command line tool for concurrently retrieving metadata from Archive.org items. All binaries were built using <a href=\"https://github.com/pantsbuild/pex\" rel=\"nofollow\">https://github.com/pantsbuild/pex</a>.</p><br /><p>Latest binary: <a href=\"/download/iamine-pex/ia-mine-${VERSION}-py3.pex\">ia-mine v${VERSION}</a></p><br /><p>Github repository: <a href=\"https://github.com/jjjake/iamine\" rel=\"nofollow\">https://github.com/jjjake/iamine</a></p>"
+IA_PEX_DESCRIPTION="<p>This item contains binaries of the ia-mine command line tool. \"ia-mine\" is a command line tool for concurrently retrieving metadata from Archive.org items. All binaries were built using <a href=\"https://github.com/pantsbuild/pex\" rel=\"nofollow\">https://github.com/pantsbuild/pex</a>.</p><br /><p>Latest binary: <a href=\"/download/iamine-pex/ia-mine\">ia-mine v${VERSION}</a></p><br /><p>Github repository: <a href=\"https://github.com/jjjake/iamine\" rel=\"nofollow\">https://github.com/jjjake/iamine</a></p><p>The binaries only requirements are that you have Python 3 installed on a unix-like operating system."
 
 publish:
 	python3 setup.py register
@@ -15,10 +15,14 @@ wheels:
 	pip3 wheel -r requirements.txt
 
 binaries: clean-pex wheels
+	
+	pex iamine==$(VERSION) asyncio -o ia-mine-$(VERSION)-py3-none-any.pex --platform 'linux-x86_64' --platform 'macosx-10.11-x86_64' --python-shebang '/usr/bin/env python3' -e iamine.__main__:main
 	pex -vvv --disable-cache --no-pypi --repo=wheelhouse/ --python-shebang='/usr/bin/env python3' -r requirements.txt -e iamine.__main__:main -o ia-mine-$(VERSION)-py3.pex
 
 publish-binaries:
-	wget -nc https://archive.org/download/ia-pex/ia-0.7.9-python2.7.pex
-	chmod +x ia-0.7.9-python2.7.pex
-	./ia-0.7.9-python2.7.pex upload iamine-pex ia-mine-$(VERSION)-py3.pex
-	./ia-0.7.9-python2.7.pex metadata iamine-pex -m description:$(IA_PEX_DESCRIPTION) -m version:$(VERSION)
+	wget -nc https://archive.org/download/ia-pex/ia
+	chmod +x ia
+	./ia upload iamine-pex ia-mine-$(VERSION)-py3-none-any.pex
+	./ia upload iamine-pex ia-mine-$(VERSION)-py3-none-any.pex --remote-name=ia-mine
+	./ia upload iamine-pex ia-mine-$(VERSION)-py3-none-any.pex --remote-name=iamine
+	./ia metadata iamine-pex -m description:$(IA_PEX_DESCRIPTION) -m version:$(VERSION)
