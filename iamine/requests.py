@@ -2,7 +2,10 @@ import os
 import locale
 import sys
 import asyncio
-import json
+try:
+    import ujson as json
+except ImportError:
+    import json
 import traceback
 
 import aiohttp
@@ -52,9 +55,9 @@ class MineRequest(object):
             yield from self.callback(resp)
             resp.close()
         else:
-            content = yield from resp.read()
+            j = yield from resp.json()
             resp.close()
-            print(content.decode('utf-8'))
+            print(json.dumps(j))
 
     @asyncio.coroutine
     def make_request(self):
