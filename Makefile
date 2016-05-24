@@ -14,10 +14,8 @@ wheels:
 	pip3 wheel .
 	pip3 wheel -r requirements.txt
 
-binaries: clean-pex wheels
-	
-	pex iamine==$(VERSION) asyncio -o ia-mine-$(VERSION)-py3-none-any.pex --platform 'linux-x86_64' --platform 'macosx-10.11-x86_64' --python-shebang '/usr/bin/env python3' -e iamine.__main__:main
-	pex -vvv --disable-cache --no-pypi --repo=wheelhouse/ --python-shebang='/usr/bin/env python3' -r requirements.txt -e iamine.__main__:main -o ia-mine-$(VERSION)-py3.pex
+binaries: clean-pex
+	pex iamine==$(VERSION) asyncio -o ia-mine-$(VERSION)-py3-none-any.pex --platform 'linux-x86_64' --platform 'macosx-10.11-x86_64' --python-shebang '/usr/bin/env python3' -e iamine.__main__:main --repo wheelhouse
 
 publish-binaries:
 	wget -nc https://archive.org/download/ia-pex/ia
