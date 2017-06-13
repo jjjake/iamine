@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Concurrently retrieve metadata from Archive.org items.
 
-usage: ia-mine [--config-file=<FILE>] (<itemlist> | -) [--debug] [--workers WORKERS] [--cache]
+usage: ia-mine [--config-file=<FILE>] (<itemlist> | -) [--debug] [--workers WORKERS]
                [--retries RETRIES] [--secure] [--hosts HOSTS]
        ia-mine [--all | --search QUERY] [[--info | --info --field FIELD...]
                |--num-found | --mine-ids | --field FIELD... | --itemlist]
-               [--debug] [--rows ROWS] [--workers WORKERS] [--cache]
+               [--debug] [--rows ROWS] [--workers WORKERS]
                [--retries RETRIES] [--secure] [--hosts HOSTS]
        ia-mine [--config-file=<FILE>] [-h | --version | --configure]
 
@@ -38,8 +38,6 @@ optional arguments:
   -w, --workers WORKERS
                              The maximum number of tasks to run at once.
                              [default: 100]
-  -c, --cache                Cache item metadata on Archive.org. Items are not
-                             cached are not cached by default.
   -r, --retries RETRIES
                              The maximum number of retries for each item.
                              [default: 10]
